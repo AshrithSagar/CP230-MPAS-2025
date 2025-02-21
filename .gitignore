@@ -309,3 +309,5 @@ TSWLatexianTemp*
 ###
 **.pdf
 mermaid-filter.err
+
+Algorithms/notebooks/*
