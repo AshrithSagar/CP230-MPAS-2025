@@ -18,19 +18,18 @@ class GridWorld:
     def __init__(
         self,
         grid_size: int,
-        start: List[int],
-        goal: List[int],
-        obstacles: List[List[int]],
+        start: Tuple[int],
+        goal: List[Tuple[int]],
+        obstacles: List[Tuple[int]],
         rewards: dict = None,
     ):
-        self.grid_size: int = grid_size
-        self.start: List[int] = start
-        self.goal: List[int] = goal
-        self.obstacles: List[List[int]] = obstacles
+        self.grid_size = grid_size
+        self.start = start
+        self.goal = goal
+        self.obstacles = obstacles
         self.agent_position: List[int] = list(start)
-        self.rewards: dict = (
-            rewards if rewards else {"goal": 10, "obstacle": -10, "step": -1}
-        )
+        default_rewards = {"goal": 10, "obstacle": -10, "step": -1}
+        self.rewards: dict = rewards if rewards else default_rewards
 
     class Action(Enum):
         """Actions that the agent can take in the environment."""
@@ -60,13 +59,14 @@ class GridWorld:
         self.agent_position[0] = max(0, min(self.agent_position[0], self.grid_size - 1))
         self.agent_position[1] = max(0, min(self.agent_position[1], self.grid_size - 1))
 
-        # Check if the agent has reached the goal or an obstacle
-        if self.agent_position == self.goal:
-            return self.agent_position, self.rewards["goal"], True
+        # Check if the episode is done
+        if self.agent_position in self.goal:
+            reward, done = self.rewards["goal"], True
         elif self.agent_position in self.obstacles:
-            return (self.agent_position, self.rewards["obstacle"], True)
+            reward, done = self.rewards["obstacle"], True
         else:
-            return self.agent_position, self.rewards["step"], False
+            reward, done = self.rewards["step"], False
+        return self.agent_position, reward, done
 
 
 class QLearningAgent:
@@ -96,7 +96,7 @@ class QLearningAgent:
         )
 
     def choose_action(
-        self, state: List[int], policy: str = "epsilon-greedy"
+        self, state: Tuple[int], policy: str = "epsilon-greedy"
     ) -> GridWorld.Action:
         """
         Choose an action based on a policy
@@ -118,21 +118,17 @@ class QLearningAgent:
 
     def learn(
         self,
-        state: List[int],
+        state: Tuple[int],
         action: GridWorld.Action,
         reward: int,
-        next_state: List[int],
+        next_state: Tuple[int],
         done: bool,
     ) -> None:
         """Update the Q-table using the Q-learning update rule."""
-        best_next_action = (
-            np.max(self.q_table[next_state[0], next_state[1]]) if not done else 0
-        )
-        self.q_table[state[0], state[1], action.value] += self.alpha * (
-            reward
-            + self.gamma * best_next_action
-            - self.q_table[state[0], state[1], action.value]
-        )
+        best_next_q_value = np.max(self.q_table[next_state[0], next_state[1]])
+        td_target = reward + self.gamma * best_next_q_value * (not done)
+        td_error = td_target - self.q_table[state[0], state[1], action.value]
+        self.q_table[state[0], state[1], action.value] += self.alpha * td_error
 
     def train(self, episodes: int) -> None:
         """Train the agent by running Q-learning over multiple episodes."""
@@ -163,9 +159,9 @@ class QLearningAgent:
 if __name__ == "__main__":
     env = GridWorld(
         grid_size=40,
-        start=[0, 0],
-        goal=[39, 39],
-        obstacles=[[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]],
+        start=(0, 0),
+        goal=[(39, 39)],
+        obstacles=[(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
     )
     agent = QLearningAgent(env, alpha=0.1, gamma=0.9, epsilon=0.2)
     agent.train(episodes=1000)
