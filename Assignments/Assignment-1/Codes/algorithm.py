@@ -18,16 +18,16 @@ class GridWorld:
     def __init__(
         self,
         grid_size: int,
-        start: Tuple[int],
-        goal: List[Tuple[int]],
-        obstacles: List[Tuple[int]],
+        start: List[int],
+        goal: List[List[int]],
+        obstacles: List[List[int]],
         rewards: dict = None,
     ):
         self.grid_size = grid_size
         self.start = start
         self.goal = goal
         self.obstacles = obstacles
-        self.agent_position: List[int] = list(start)
+        self.agent_position: List[int] = start
         default_rewards = {"goal": 10, "obstacle": -10, "step": -1}
         self.rewards: dict = rewards if rewards else default_rewards
 
@@ -41,7 +41,7 @@ class GridWorld:
 
     def reset(self) -> List[int]:
         """Reset the agent's position to the starting state."""
-        self.agent_position = list(self.start)
+        self.agent_position = self.start
         return self.agent_position
 
     def step(self, action: Action) -> Tuple[List[int], int, bool]:
@@ -96,7 +96,7 @@ class QLearningAgent:
         )
 
     def choose_action(
-        self, state: Tuple[int], policy: str = "epsilon-greedy"
+        self, state: List[int], policy: str = "epsilon-greedy"
     ) -> GridWorld.Action:
         """
         Choose an action based on a policy
@@ -118,10 +118,10 @@ class QLearningAgent:
 
     def learn(
         self,
-        state: Tuple[int],
+        state: List[int],
         action: GridWorld.Action,
         reward: int,
-        next_state: Tuple[int],
+        next_state: List[int],
         done: bool,
     ) -> None:
         """Update the Q-table using the Q-learning update rule."""
@@ -159,9 +159,9 @@ class QLearningAgent:
 if __name__ == "__main__":
     env = GridWorld(
         grid_size=40,
-        start=(0, 0),
-        goal=[(39, 39)],
-        obstacles=[(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
+        start=[0, 0],
+        goal=[[39, 39]],
+        obstacles=[[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]],
     )
     agent = QLearningAgent(env, alpha=0.1, gamma=0.9, epsilon=0.2)
     agent.train(episodes=1000)
