@@ -1,132 +1,164 @@
 """
 algorithm.py
-Algorithm implementations.
+Implementations
 """
 
 import random
+from enum import Enum
+from typing import List, Tuple
 
 import numpy as np
-from grid import create_grid
+
+random.seed(42)
 
 
-class QLearning:
+class GridWorld:
+    """Grid world environment for the Q-learning agent."""
+
+    def __init__(
+        self,
+        grid_size: int,
+        start: List[int],
+        goal: List[int],
+        obstacles: List[List[int]],
+        rewards: dict = None,
+    ):
+        self.grid_size: int = grid_size
+        self.start: List[int] = start
+        self.goal: List[int] = goal
+        self.obstacles: List[List[int]] = obstacles
+        self.agent_position: List[int] = list(start)
+        self.rewards: dict = (
+            rewards if rewards else {"goal": 10, "obstacle": -10, "step": -1}
+        )
+
+    class Action(Enum):
+        """Actions that the agent can take in the environment."""
+
+        UP = 0
+        DOWN = 1
+        LEFT = 2
+        RIGHT = 3
+
+    def reset(self) -> List[int]:
+        """Reset the agent's position to the starting state."""
+        self.agent_position = list(self.start)
+        return self.agent_position
+
+    def step(self, action: Action) -> Tuple[List[int], int, bool]:
+        """Take an action and return the next state, reward, and whether the episode is done."""
+        if action == GridWorld.Action.UP:
+            self.agent_position[0] -= 1
+        elif action == GridWorld.Action.DOWN:
+            self.agent_position[0] += 1
+        elif action == GridWorld.Action.LEFT:
+            self.agent_position[1] -= 1
+        elif action == GridWorld.Action.RIGHT:
+            self.agent_position[1] += 1
+
+        # Stay within the grid boundaries
+        self.agent_position[0] = max(0, min(self.agent_position[0], self.grid_size - 1))
+        self.agent_position[1] = max(0, min(self.agent_position[1], self.grid_size - 1))
+
+        # Check if the agent has reached the goal or an obstacle
+        if self.agent_position == self.goal:
+            return self.agent_position, self.rewards["goal"], True
+        elif self.agent_position in self.obstacles:
+            return (self.agent_position, self.rewards["obstacle"], True)
+        else:
+            return self.agent_position, self.rewards["step"], False
+
+
+class QLearningAgent:
     """
-    Class to implement Q-Learning algorithm.
+    Q-learning agent that learns to navigate the grid world environment.
+
+    Parameters:
+    env (GridWorld): The grid world environment.
+    alpha (float): Learning rate.
+    gamma (float): Discount factor.
+    epsilon (float): Exploration rate.
     """
 
     def __init__(
-        self, grid, start, goal_area, obstacles, alpha=0.1, gamma=0.6, epsilon=0.1
+        self,
+        env: GridWorld,
+        alpha: float = 0.1,
+        gamma: float = 0.9,
+        epsilon: float = 0.2,
     ):
-        self.grid = grid
-        self.start = start
-        self.goal_area = goal_area
-        self.obstacles = obstacles
-
-        self.alpha = alpha
-        self.gamma = gamma
-        self.epsilon = epsilon
-
-        self.q_table = np.zeros((len(grid), len(grid), 4))
-
-    def get_next_action(self, state):
-        """
-        Get the next action based on epsilon-greedy policy
-        """
-        if random.uniform(0, 1) < self.epsilon:
-            # Random action | Exploration
-            return random.randint(0, 3)
-        else:
-            # Greedy action | Exploitation
-            return np.argmax(self.q_table[state])
-
-    def get_neighbours(self, state):
-        """
-        Get the neighbours of the current state
-        """
-        x, y = state
-        neighbours = []
-        if x > 0:
-            neighbours.append((x - 1, y))  # Left
-        if x < len(self.grid) - 1:
-            neighbours.append((x + 1, y))  # Right
-        if y > 0:
-            neighbours.append((x, y - 1))  # Up
-        if y < len(self.grid) - 1:
-            neighbours.append((x, y + 1))  # Down
-        return neighbours
-
-    def update_q_table(self, state, action, reward, next_state):
-        """
-        Update Q-Table based on Bellman Equation
-        """
-        self.q_table[state][action] += self.alpha * (
-            reward
-            + self.gamma * np.max(self.q_table[next_state])
-            - self.q_table[state][action]
+        self.env: GridWorld = env
+        self.alpha: float = alpha
+        self.gamma: float = gamma
+        self.epsilon: float = epsilon
+        self.q_table: np.ndarray = np.zeros(
+            (env.grid_size, env.grid_size, len(GridWorld.Action))
         )
 
-    def train(self, episodes=1000, verbose=False):
-        for episode in range(episodes):
-            state = self.start
-            total_reward = 0
-            steps = 0
-            while state not in self.goal_area:
-                action = self.get_next_action(state)
-                next_state = self.move(state, action)
-                reward = self.get_reward(next_state)
-                self.update_q_table(state, action, reward, next_state)
-                state = next_state
-                total_reward += reward
-                steps += 1
-                if verbose:
-                    print(f"State: {state}, Action: {action}, Reward: {reward}")
-            if verbose:
-                print(
-                    f"Episode {episode + 1}: Total Reward: {total_reward}, Steps: {steps}"
-                )
-
-    def move(self, state, action):
-        x, y = state
-        if action == 0:
-            x -= 1
-        elif action == 1:
-            y += 1
-        elif action == 2:
-            x += 1
-        elif action == 3:
-            y -= 1
-
-        # Ensure within grid
-        x = max(0, min(x, len(self.grid) - 1))
-        y = max(0, min(y, len(self.grid) - 1))
-
-        return x, y
-
-    def get_reward(self, state):
-        if state in self.goal_area:
-            return 100
-        elif state in self.obstacles:
-            return -100
+    def choose_action(self, state: List[int]) -> GridWorld.Action:
+        """Choose an action based on the epsilon-greedy policy."""
+        if random.uniform(0, 1) < self.epsilon:
+            # Explore: Choose random action
+            return random.choice(list(GridWorld.Action))
         else:
-            return -1
+            # Exploit: Choose best known action
+            return GridWorld.Action(np.argmax(self.q_table[state[0], state[1]]))
 
-    def get_path(self):
-        path = []
-        state = self.start
-        while state not in self.goal_area:
-            action = np.argmax(self.q_table[state])
-            next_state = self.move(state, action)
-            path.append(next_state)
-            state = next_state
+    def learn(
+        self,
+        state: List[int],
+        action: GridWorld.Action,
+        reward: int,
+        next_state: List[int],
+        done: bool,
+    ) -> None:
+        """Update the Q-table using the Q-learning update rule."""
+        best_next_action = (
+            np.max(self.q_table[next_state[0], next_state[1]]) if not done else 0
+        )
+        self.q_table[state[0], state[1], action.value] += self.alpha * (
+            reward
+            + self.gamma * best_next_action
+            - self.q_table[state[0], state[1], action.value]
+        )
 
-        return path
+    def train(self, episodes: int) -> None:
+        """Train the agent by running Q-learning over multiple episodes."""
+        for _ in range(episodes):
+            state = self.env.reset()
+            done = False
+            while not done:
+                action = self.choose_action(state)
+                next_state, reward, done = self.env.step(action)
+                self.learn(state, action, reward, next_state, done)
+                state = next_state
+
+    def evaluate(self, episodes: int) -> float:
+        """Evaluate the agent's performance by running it without exploration (greedy policy)."""
+        total_reward: float = 0
+        for _ in range(episodes):
+            state = self.env.reset()
+            done = False
+            while not done:
+                action = self.choose_action(state)
+                state, reward, done = self.env.step(action)
+                total_reward += reward
+        avg_reward: float = total_reward / episodes
+        print(f"Average reward over {episodes} episodes: {avg_reward}")
+        return avg_reward
 
 
 if __name__ == "__main__":
-    grid, start, goal_area, obstacles = create_grid()
+    env = GridWorld(
+        grid_size=5,
+        start=[0, 0],
+        goal=[4, 4],
+        obstacles=[[1, 1], [2, 2], [3, 3]],
+    )
+    agent = QLearningAgent(env, alpha=0.1, gamma=0.9, epsilon=0.2)
+    agent.train(episodes=1000)
 
-    q_learning = QLearning(grid, start, goal_area, obstacles)
-    q_learning.train(verbose=True)
-    path = q_learning.get_path()
-    print(path)
-    print(q_learning.q_table)
+    print("Q-table after training:")
+    print(agent.q_table)
+
+    agent.evaluate(episodes=100)
