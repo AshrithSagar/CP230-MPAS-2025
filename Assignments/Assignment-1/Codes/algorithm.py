@@ -95,14 +95,26 @@ class QLearningAgent:
             (env.grid_size, env.grid_size, len(GridWorld.Action))
         )
 
-    def choose_action(self, state: List[int]) -> GridWorld.Action:
-        """Choose an action based on the epsilon-greedy policy."""
-        if random.uniform(0, 1) < self.epsilon:
-            # Explore: Choose random action
-            return random.choice(list(GridWorld.Action))
-        else:
-            # Exploit: Choose best known action
+    def choose_action(
+        self, state: List[int], policy: str = "epsilon-greedy"
+    ) -> GridWorld.Action:
+        """
+        Choose an action based on a policy
+
+        Parameters:
+        state (List[int]): The current state.
+        policy (str): The policy to use for choosing the action.
+        Can be one of "epsilon-greedy" or "greedy".
+        """
+        if policy == "epsilon-greedy":
+            if random.random() < self.epsilon:
+                return GridWorld.Action(random.choice(list(GridWorld.Action)))
+            else:
+                return GridWorld.Action(np.argmax(self.q_table[state[0], state[1]]))
+        elif policy == "greedy":
             return GridWorld.Action(np.argmax(self.q_table[state[0], state[1]]))
+        else:
+            raise ValueError("Invalid policy")
 
     def learn(
         self,
@@ -128,7 +140,7 @@ class QLearningAgent:
             state = self.env.reset()
             done = False
             while not done:
-                action = self.choose_action(state)
+                action = self.choose_action(state, policy="epsilon-greedy")
                 next_state, reward, done = self.env.step(action)
                 self.learn(state, action, reward, next_state, done)
                 state = next_state
@@ -140,7 +152,7 @@ class QLearningAgent:
             state = self.env.reset()
             done = False
             while not done:
-                action = self.choose_action(state)
+                action = self.choose_action(state, policy="greedy")
                 state, reward, done = self.env.step(action)
                 total_reward += reward
         avg_reward: float = total_reward / episodes
@@ -150,15 +162,11 @@ class QLearningAgent:
 
 if __name__ == "__main__":
     env = GridWorld(
-        grid_size=5,
+        grid_size=40,
         start=[0, 0],
-        goal=[4, 4],
-        obstacles=[[1, 1], [2, 2], [3, 3]],
+        goal=[39, 39],
+        obstacles=[[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]],
     )
     agent = QLearningAgent(env, alpha=0.1, gamma=0.9, epsilon=0.2)
     agent.train(episodes=1000)
-
-    print("Q-table after training:")
-    print(agent.q_table)
-
     agent.evaluate(episodes=100)
