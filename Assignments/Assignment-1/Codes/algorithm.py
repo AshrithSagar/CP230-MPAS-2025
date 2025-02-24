@@ -7,7 +7,9 @@ import random
 from enum import Enum
 from typing import List, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.animation import FuncAnimation
 
 random.seed(42)
 
@@ -156,6 +158,49 @@ class QLearningAgent:
         return avg_reward
 
 
+def animate(
+    agent: QLearningAgent,
+    env: GridWorld,
+    show_grid: bool = False,
+    markersize: int = 10,
+    frames: int = 100,
+) -> None:
+    """Animate the agent's movement in the grid world."""
+    fig, ax = plt.subplots(figsize=(7, 7))
+    ax.set_xlim(0, env.grid_size)
+    ax.set_ylim(0, env.grid_size)
+
+    # Grid
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.grid(show_grid)
+
+    # Mark start, goal, obstacles, and agent
+    start_patch = plt.Rectangle(
+        (env.start[0], env.start[1]), 1, 1, color="purple", alpha=0.5
+    )
+    ax.add_patch(start_patch)
+    for goal in env.goal:
+        goal_patch = plt.Rectangle((goal[0], goal[1]), 1, 1, color="green", alpha=0.5)
+        ax.add_patch(goal_patch)
+    for obs in env.obstacles:
+        obstacle_patch = plt.Rectangle((obs[0], obs[1]), 1, 1, color="red", alpha=0.5)
+        ax.add_patch(obstacle_patch)
+    agent_marker = plt.plot([], [], marker="o", markersize=markersize, color="blue")[0]
+
+    def update(frame):
+        """Update the agent's position for each frame."""
+        state = env.reset()
+        for _ in range(frame):
+            action = agent.choose_action(state, policy="epsilon-greedy")
+            state, _, _ = env.step(action)
+            agent_marker.set_data([state[1] + 0.5], [state[0] + 0.5])
+
+    _ = FuncAnimation(fig, update, frames=frames, interval=250)
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
     env = GridWorld(
         grid_size=40,
@@ -166,3 +211,4 @@ if __name__ == "__main__":
     agent = QLearningAgent(env, alpha=0.1, gamma=0.9, epsilon=0.2)
     agent.train(episodes=1000)
     agent.evaluate(episodes=100)
+    animate(agent, env, markersize=5)
