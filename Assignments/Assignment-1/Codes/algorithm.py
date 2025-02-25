@@ -100,7 +100,7 @@ class QLearningAgent:
         )
 
     def choose_action(
-        self, state: List[int], policy: str = "epsilon-greedy"
+        self, state: List[int], policy: str = "greedy", params: dict = {}
     ) -> GridWorld.Action:
         """
         Choose an action based on a policy
@@ -112,7 +112,7 @@ class QLearningAgent:
         """
         q_values = self.q_table[state[0], state[1]]
         if policy == "epsilon-greedy":
-            if random.random() < self.epsilon:
+            if random.random() < params.get("epsilon", self.epsilon):
                 return GridWorld.Action(random.choice(list(GridWorld.Action)))
             else:
                 max_q = np.max(q_values)
@@ -147,11 +147,15 @@ class QLearningAgent:
 
     def train(self, episodes: int) -> None:
         """Train the agent by running Q-learning over multiple episodes."""
+        epsilon = self.epsilon
         for _ in range(episodes):
+            epsilon = max(0.1, epsilon * 0.99)
             state = self.env.reset()
             done = False
             while not done:
-                action = self.choose_action(state, policy="epsilon-greedy")
+                action = self.choose_action(
+                    state, policy="epsilon-greedy", params={"epsilon": epsilon}
+                )
                 next_state, reward, done = self.env.step(action)
                 self.learn(state, action, reward, next_state, done)
                 state = next_state
@@ -230,9 +234,9 @@ if __name__ == "__main__":
         start=[0, 0],
         goal=[[9, 9]],
         obstacles=[[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]],
-        rewards={"goal": 10, "obstacle": -10, "step": -1},
+        rewards={"goal": 10, "obstacle": -5, "step": -1},
     )
-    agent = QLearningAgent(env, alpha=0.1, gamma=0.9, epsilon=0.5)
+    agent = QLearningAgent(env, alpha=0.5, gamma=0.8, epsilon=0.5)
     agent.train(episodes=1000)
     agent.evaluate(episodes=100)
     animate(agent, env, markersize=10)
