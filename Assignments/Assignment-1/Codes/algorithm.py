@@ -36,16 +36,18 @@ class GridWorld:
         """Actions that the agent can take in the environment."""
 
         UP = 0
-        DOWN = 1
-        LEFT = 2
-        RIGHT = 3
+        RIGHT = 1
+        DOWN = 2
+        LEFT = 3
 
     def reset(self) -> List[int]:
         """Reset the agent's position to the starting state."""
         self.agent_position = self.start[:]
         return self.agent_position[:]
 
-    def step(self, action: Action) -> Tuple[List[int], int, bool]:
+    def step(
+        self, action: Action, stop_at_obstacle: bool = False
+    ) -> Tuple[List[int], int, bool]:
         """Take an action and return the next state, reward, and whether the episode is done."""
         prev_position = self.agent_position[:]
 
@@ -66,7 +68,7 @@ class GridWorld:
         if self.agent_position in self.goal:
             reward, done = self.rewards["goal"], True
         elif self.agent_position in self.obstacles:
-            reward, done = self.rewards["obstacle"], True
+            reward, done = self.rewards["obstacle"], stop_at_obstacle
             self.agent_position = prev_position
         else:
             reward, done = self.rewards["step"], False
@@ -168,7 +170,7 @@ class QLearningAgent:
             done = False
             while not done:
                 action = self.choose_action(state, policy="greedy")
-                state, reward, done = self.env.step(action)
+                state, reward, done = self.env.step(action, stop_at_obstacle=True)
                 total_reward += reward
         avg_reward: float = total_reward / episodes
         print(f"Average reward over {episodes} episodes: {avg_reward}")
@@ -229,8 +231,8 @@ def animate(
     optimal_path = [state[:]]
     done = False
     while not done:
-        action = agent.choose_action(state, policy="epsilon-greedy")
-        next_state, _, done = env.step(action)
+        action = agent.choose_action(state, policy="greedy")
+        next_state, _, done = env.step(action, stop_at_obstacle=True)
         optimal_path.append(next_state[:])
         state = next_state
 
@@ -250,13 +252,13 @@ def animate(
 
 if __name__ == "__main__":
     env = GridWorld(
-        grid_size=10,
+        grid_size=5,
         start=[0, 0],
-        goal=[[9, 9]],
-        obstacles=[[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]],
+        goal=[[4, 4]],
+        obstacles=[[1, 1], [2, 2]],
         rewards={"goal": 10, "obstacle": -5, "step": -1},
     )
-    agent = QLearningAgent(env, alpha=0.5, gamma=0.8, epsilon=0.5)
-    agent.train(episodes=1000)
-    agent.evaluate(episodes=100)
+    agent = QLearningAgent(env, alpha=0.1, gamma=0.95, epsilon=0.2)
+    agent.train(episodes=100)
+    agent.evaluate(episodes=1)
     animate(agent, env, markersize=10)
