@@ -167,50 +167,60 @@ def animate(
     markersize: int = 10,
     frames: int = 100,
 ) -> None:
-    """Animate the agent's movement in the grid world."""
+    """Animate the agent's movement in the grid world, tracing the path taken."""
     fig, ax = plt.subplots(figsize=(7, 7))
     ax.set_xlim(0, env.grid_size)
     ax.set_ylim(0, env.grid_size)
 
-    # Grid
     ax.set_xticks([])
     ax.set_yticks([])
     ax.grid(show_grid)
 
-    # Mark start, goal, obstacles, and agent
     start_patch = plt.Rectangle(
-        (env.start[0], env.start[1]), 1, 1, color="purple", alpha=0.5
+        (env.start[1], env.start[0]), 1, 1, color="purple", alpha=0.5
     )
     ax.add_patch(start_patch)
     for goal in env.goal:
-        goal_patch = plt.Rectangle((goal[0], goal[1]), 1, 1, color="green", alpha=0.5)
+        goal_patch = plt.Rectangle((goal[1], goal[0]), 1, 1, color="green", alpha=0.5)
         ax.add_patch(goal_patch)
     for obs in env.obstacles:
-        obstacle_patch = plt.Rectangle((obs[0], obs[1]), 1, 1, color="red", alpha=0.5)
+        obstacle_patch = plt.Rectangle((obs[1], obs[0]), 1, 1, color="red", alpha=0.5)
         ax.add_patch(obstacle_patch)
-    agent_marker = plt.plot([], [], marker="o", markersize=markersize, color="blue")[0]
+
+    (agent_marker,) = ax.plot([], [], marker="o", markersize=markersize, color="blue")
+    (path_line,) = ax.plot([], [], color="blue", linewidth=2)
+
+    state = env.reset()
+    optimal_path = [state[:]]
+    done = False
+    while not done:
+        action = agent.choose_action(state, policy="greedy")
+        next_state, _, done = env.step(action)
+        optimal_path.append(next_state[:])
+        state = next_state
+
+    x_path = [s[1] + 0.5 for s in optimal_path]
+    y_path = [s[0] + 0.5 for s in optimal_path]
 
     def update(frame):
-        """Update the agent's position for each frame."""
-        state = env.reset()
-        for _ in range(frame):
-            action = agent.choose_action(state, policy="epsilon-greedy")
-            state, _, _ = env.step(action)
-            agent_marker.set_data([state[1] + 0.5], [state[0] + 0.5])
+        if frame < len(x_path):
+            agent_marker.set_data([x_path[frame]], [y_path[frame]])
+            path_line.set_data(x_path[: frame + 1], y_path[: frame + 1])
+        return agent_marker, path_line
 
-    _ = FuncAnimation(fig, update, frames=frames, interval=250)
+    _ = FuncAnimation(fig, update, frames=frames, interval=250, blit=True)
     plt.tight_layout()
     plt.show()
 
 
 if __name__ == "__main__":
     env = GridWorld(
-        grid_size=40,
+        grid_size=10,
         start=[0, 0],
-        goal=[[39, 39]],
+        goal=[[9, 9]],
         obstacles=[[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]],
     )
     agent = QLearningAgent(env, alpha=0.1, gamma=0.9, epsilon=0.2)
     agent.train(episodes=1000)
     agent.evaluate(episodes=100)
-    animate(agent, env, markersize=5)
+    animate(agent, env, markersize=10)
