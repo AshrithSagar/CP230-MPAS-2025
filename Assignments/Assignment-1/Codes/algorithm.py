@@ -191,16 +191,36 @@ def animate(
     ax.set_yticks([])
     ax.grid(show_grid)
 
-    start_patch = plt.Rectangle(
-        (env.start[0], env.start[1]), 1, 1, color="purple", alpha=0.5
-    )
-    ax.add_patch(start_patch)
+    def add_patch(position, color, alpha=0.5):
+        patch = plt.Rectangle(
+            (position[0], position[1]), 1, 1, color=color, alpha=alpha
+        )
+        ax.add_patch(patch)
+
+    def add_q_value_text(x, y, action, offset_x, offset_y):
+        q_value = agent.q_table[x, y, action.value]
+        ax.text(
+            y + offset_y,
+            x + offset_x,
+            f"{q_value:.1f}",
+            ha="center",
+            va="center",
+            fontsize=6,
+            color="black",
+        )
+
+    add_patch(env.start, "purple")
     for goal in env.goal:
-        goal_patch = plt.Rectangle((goal[0], goal[1]), 1, 1, color="green", alpha=0.5)
-        ax.add_patch(goal_patch)
+        add_patch(goal, "green")
     for obs in env.obstacles:
-        obstacle_patch = plt.Rectangle((obs[0], obs[1]), 1, 1, color="red", alpha=0.5)
-        ax.add_patch(obstacle_patch)
+        add_patch(obs, "red")
+
+    for x in range(env.grid_size):
+        for y in range(env.grid_size):
+            add_q_value_text(x, y, GridWorld.Action.UP, 0.25, 0.5)
+            add_q_value_text(x, y, GridWorld.Action.DOWN, 0.75, 0.5)
+            add_q_value_text(x, y, GridWorld.Action.LEFT, 0.5, 0.25)
+            add_q_value_text(x, y, GridWorld.Action.RIGHT, 0.5, 0.75)
 
     (agent_marker,) = ax.plot([], [], marker="o", markersize=markersize, color="blue")
     (path_line,) = ax.plot([], [], color="blue", linewidth=2, alpha=0.5)
