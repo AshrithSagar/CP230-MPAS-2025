@@ -110,13 +110,24 @@ class QLearningAgent:
         policy (str): The policy to use for choosing the action.
         Can be one of "epsilon-greedy" or "greedy".
         """
+        q_values = self.q_table[state[0], state[1]]
         if policy == "epsilon-greedy":
             if random.random() < self.epsilon:
                 return GridWorld.Action(random.choice(list(GridWorld.Action)))
             else:
-                return GridWorld.Action(np.argmax(self.q_table[state[0], state[1]]))
+                max_q = np.max(q_values)
+                max_actions = [
+                    action for action, value in enumerate(q_values) if value == max_q
+                ]
+                chosen_action = random.choice(max_actions)
+                return GridWorld.Action(chosen_action)
         elif policy == "greedy":
-            return GridWorld.Action(np.argmax(self.q_table[state[0], state[1]]))
+            max_q = np.max(q_values)
+            max_actions = [
+                action for action, value in enumerate(q_values) if value == max_q
+            ]
+            chosen_action = random.choice(max_actions)
+            return GridWorld.Action(chosen_action)
         else:
             raise ValueError("Invalid policy")
 
@@ -177,30 +188,30 @@ def animate(
     ax.grid(show_grid)
 
     start_patch = plt.Rectangle(
-        (env.start[1], env.start[0]), 1, 1, color="purple", alpha=0.5
+        (env.start[0], env.start[1]), 1, 1, color="purple", alpha=0.5
     )
     ax.add_patch(start_patch)
     for goal in env.goal:
-        goal_patch = plt.Rectangle((goal[1], goal[0]), 1, 1, color="green", alpha=0.5)
+        goal_patch = plt.Rectangle((goal[0], goal[1]), 1, 1, color="green", alpha=0.5)
         ax.add_patch(goal_patch)
     for obs in env.obstacles:
-        obstacle_patch = plt.Rectangle((obs[1], obs[0]), 1, 1, color="red", alpha=0.5)
+        obstacle_patch = plt.Rectangle((obs[0], obs[1]), 1, 1, color="red", alpha=0.5)
         ax.add_patch(obstacle_patch)
 
     (agent_marker,) = ax.plot([], [], marker="o", markersize=markersize, color="blue")
-    (path_line,) = ax.plot([], [], color="blue", linewidth=2)
+    (path_line,) = ax.plot([], [], color="blue", linewidth=2, alpha=0.5)
 
     state = env.reset()
     optimal_path = [state[:]]
     done = False
     while not done:
-        action = agent.choose_action(state, policy="greedy")
+        action = agent.choose_action(state, policy="epsilon-greedy")
         next_state, _, done = env.step(action)
         optimal_path.append(next_state[:])
         state = next_state
 
-    x_path = [s[1] + 0.5 for s in optimal_path]
-    y_path = [s[0] + 0.5 for s in optimal_path]
+    x_path = [s[0] + 0.5 for s in optimal_path]
+    y_path = [s[1] + 0.5 for s in optimal_path]
 
     def update(frame):
         if frame < len(x_path):
@@ -219,8 +230,9 @@ if __name__ == "__main__":
         start=[0, 0],
         goal=[[9, 9]],
         obstacles=[[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]],
+        rewards={"goal": 10, "obstacle": -10, "step": -1},
     )
-    agent = QLearningAgent(env, alpha=0.1, gamma=0.9, epsilon=0.2)
+    agent = QLearningAgent(env, alpha=0.1, gamma=0.9, epsilon=0.5)
     agent.train(episodes=1000)
     agent.evaluate(episodes=100)
     animate(agent, env, markersize=10)
