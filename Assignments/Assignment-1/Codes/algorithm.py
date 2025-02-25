@@ -29,11 +29,10 @@ class GridWorld:
         self.start = start
         self.goal = goal
         self.obstacles = obstacles
-        self.agent_position: List[int] = start
-        default_rewards = {"goal": 10, "obstacle": -10, "step": -1}
-        self.rewards: dict = rewards if rewards else default_rewards
+        self.agent_position: List[int] = start[:]
+        self.rewards = rewards or {"goal": 10, "obstacle": -10, "step": -1}
 
-    class Action(Enum):
+    class Action(int, Enum):
         """Actions that the agent can take in the environment."""
 
         UP = 0
@@ -43,11 +42,13 @@ class GridWorld:
 
     def reset(self) -> List[int]:
         """Reset the agent's position to the starting state."""
-        self.agent_position = self.start
-        return self.agent_position
+        self.agent_position = self.start[:]
+        return self.agent_position[:]
 
     def step(self, action: Action) -> Tuple[List[int], int, bool]:
         """Take an action and return the next state, reward, and whether the episode is done."""
+        prev_position = self.agent_position[:]
+
         if action == GridWorld.Action.UP:
             self.agent_position[0] -= 1
         elif action == GridWorld.Action.DOWN:
@@ -66,6 +67,7 @@ class GridWorld:
             reward, done = self.rewards["goal"], True
         elif self.agent_position in self.obstacles:
             reward, done = self.rewards["obstacle"], True
+            self.agent_position = prev_position
         else:
             reward, done = self.rewards["step"], False
         return self.agent_position, reward, done
