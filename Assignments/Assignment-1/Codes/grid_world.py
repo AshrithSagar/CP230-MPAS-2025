@@ -37,16 +37,16 @@ class GridWorld(gym.Env):
         self.action_space = gym.spaces.Discrete(4)
         self.observation_space = gym.spaces.Discrete(size[0] * size[1])
 
-    def step(self, action: int) -> Tuple[Coord, int, bool, Dict]:
+    def step(self, action: int) -> Tuple[Coord, int, bool, bool, Dict]:
 
         # Calculate the next state based on the action
-        if action == 0:
+        if action == 0:  # Right
             next_state = (self.state[0], self.state[1] + 1)
-        elif action == 1:
+        elif action == 1:  # Down
             next_state = (self.state[0] + 1, self.state[1])
-        elif action == 2:
+        elif action == 2:  # Left
             next_state = (self.state[0], self.state[1] - 1)
-        elif action == 3:
+        elif action == 3:  # Up
             next_state = (self.state[0] - 1, self.state[1])
         else:
             raise ValueError("Invalid action")
@@ -71,14 +71,14 @@ class GridWorld(gym.Env):
         else:
             reward = self.rewards["default"]
 
-        return self.state, reward, terminated, {}
+        return self.state, reward, terminated, False, {}
 
-    def reset(self, seed: int = None) -> Coord:
+    def reset(self, seed: int = None) -> Tuple[Coord, Dict]:
         super().reset(seed=seed)
         self.state = self.start
-        return self.state
+        return self.state, {}
 
-    def render(self, mode="ansi") -> str:
+    def render(self) -> str:
         grid = np.full(self.size, ".")
         grid[self.start] = "S"
         for goal in self.goal:
@@ -86,6 +86,4 @@ class GridWorld(gym.Env):
         for obstacle in self.obstacles:
             for coord in obstacle:
                 grid[coord] = "X"
-        grid[self.state] = "A"
-
         return "\n".join([" ".join(row) for row in grid])
