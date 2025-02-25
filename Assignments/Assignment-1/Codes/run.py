@@ -4,7 +4,7 @@ Run the Q-Learning agent on the GridWorld environment
 """
 
 from grid_world import GridWorld
-from q_learning import QLearning
+from q_learning import QLearningAgent
 
 
 def main():
@@ -22,7 +22,13 @@ def main():
         rewards={"goal": 100, "obstacle": -100, "default": -1},
     )
     print(env.render())
-    agent = QLearning(env, alpha=0.1, gamma=0.9, epsilon=0.1, initial_q_table=None)
+    agent = QLearningAgent(
+        env,
+        alpha=0.1,
+        gamma=0.9,
+        epsilon=0.1,
+        initial_q_table=None,
+    )
     agent.train(episodes=1000)
 
 

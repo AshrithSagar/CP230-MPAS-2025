@@ -10,7 +10,7 @@ from grid_world import Coord, GridWorld
 from rich.progress import Progress
 
 
-class QLearning:
+class QLearningAgent:
     """Q-Learning algorithm"""
 
     def __init__(
