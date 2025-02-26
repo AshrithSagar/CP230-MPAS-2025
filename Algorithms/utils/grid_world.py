@@ -39,10 +39,11 @@ class GridWorld(gym.Env):
         self.rewards = rewards
         self.slippage = slippage
         self.obstacle_penalty = obstacle_penalty
+        self._seed = seed
         self.action_space = gym.spaces.Discrete(4, seed=seed)
         self.observation_space = gym.spaces.Discrete(size[0] * size[1], seed=seed)
         self.reset(seed=seed)
-        self._seed = seed
+        self.obstacle_penalties = self._compute_obstacle_penalties()
 
     class Action(IntEnum):
         RIGHT = 0
@@ -50,12 +51,22 @@ class GridWorld(gym.Env):
         LEFT = 2
         UP = 3
 
-    def _get_obstacle_penalty(self, state: Coord) -> int:
-        """Get the penalty for being close to an obstacle"""
-        if not self.obstacle_penalty:
-            return 0
-        min_distance = min(cityblock(state, c) for obs in self.obstacles for c in obs)
-        return round(self.obstacle_penalty * min_distance)
+    def _compute_obstacle_penalties(self) -> np.ndarray:
+        """Compute the penalty for being close to an obstacle."""
+        penalties = np.zeros(self.size)
+        if self.obstacle_penalty is None:
+            return penalties
+        for i in range(self.size[0]):
+            for j in range(self.size[1]):
+                min_distance = float("inf")
+                for obstacle in self.obstacles:
+                    for coord in obstacle:
+                        distance = cityblock((i, j), coord)
+                        if distance != 0:
+                            min_distance = min(min_distance, 1 / distance)
+                penalties[i, j] = min_distance if min_distance != float("inf") else 0
+        penalties = np.round(penalties * self.obstacle_penalty).astype(int)
+        return penalties
 
     def step(self, action: int) -> Tuple[Coord, int, bool, bool, Dict]:
         if self.slippage and np.random.rand() < self.slippage:
@@ -98,7 +109,7 @@ class GridWorld(gym.Env):
             else (
                 self.rewards["obstacle"]
                 if any(self.state in obstacle for obstacle in self.obstacles)
-                else self.rewards["default"] - self._get_obstacle_penalty(self.state)
+                else self.rewards["default"] - self.obstacle_penalties[self.state]
             )
         )
         return self.state, reward, terminated, False, {}
