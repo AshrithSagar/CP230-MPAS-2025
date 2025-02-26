@@ -21,6 +21,7 @@ def main():
             [(35, 35), (35, 36), (36, 35), (36, 36), (37, 35)],
         ],
         rewards={"goal": 1000, "obstacle": -200, "default": -1},
+        slippage=None,
     )
     env.reset(seed=42)
     agent = QLearningAgent(

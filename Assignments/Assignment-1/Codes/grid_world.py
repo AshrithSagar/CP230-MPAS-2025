@@ -27,6 +27,7 @@ class GridWorld(gym.Env):
         goal: Block,
         obstacles: List[Block],
         rewards: Dict[str, int] = {"goal": 1, "obstacle": -1, "default": 0},
+        slippage: float = None,
     ):
         self.size = size
         self.start = start
@@ -34,6 +35,7 @@ class GridWorld(gym.Env):
         self.obstacles = obstacles
         self.rewards = rewards
         self.state = start
+        self.slippage = slippage
         self.action_space = gym.spaces.Discrete(4)
         self.observation_space = gym.spaces.Discrete(size[0] * size[1])
 
@@ -44,6 +46,26 @@ class GridWorld(gym.Env):
         UP = 3
 
     def step(self, action: int) -> Tuple[Coord, int, bool, bool, Dict]:
+        if self.slippage and np.random.rand() < self.slippage:
+            perpendicular_actions = {
+                GridWorld.Action.UP.value: [
+                    GridWorld.Action.RIGHT.value,
+                    GridWorld.Action.LEFT.value,
+                ],
+                GridWorld.Action.DOWN.value: [
+                    GridWorld.Action.RIGHT.value,
+                    GridWorld.Action.LEFT.value,
+                ],
+                GridWorld.Action.RIGHT.value: [
+                    GridWorld.Action.UP.value,
+                    GridWorld.Action.DOWN.value,
+                ],
+                GridWorld.Action.LEFT.value: [
+                    GridWorld.Action.UP.value,
+                    GridWorld.Action.DOWN.value,
+                ],
+            }
+            action = np.random.choice(perpendicular_actions[action])
         next_state = {
             GridWorld.Action.RIGHT.value: (self.state[0], self.state[1] + 1),
             GridWorld.Action.DOWN.value: (self.state[0] + 1, self.state[1]),
