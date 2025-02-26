@@ -26,7 +26,7 @@ class GridWorld(gym.Env):
         start: Coord,
         goal: Block,
         obstacles: List[Block],
-        rewards: Dict[str, int] = {"goal": 1, "obstacle": -1, "default": 0},
+        rewards: Dict[str, int] = {"goal": 100, "obstacle": -10, "default": -1},
         slippage: float = None,
         seed: int = 42,
     ):
@@ -36,12 +36,9 @@ class GridWorld(gym.Env):
         self.obstacles = obstacles
         self.rewards = rewards
         self.slippage = slippage
-        self.action_space = gym.spaces.Discrete(4)
-        self.observation_space = gym.spaces.Discrete(size[0] * size[1])
-        self.action_space.seed(seed)
-        self.observation_space.seed(seed)
+        self.action_space = gym.spaces.Discrete(4, seed=seed)
+        self.observation_space = gym.spaces.Discrete(size[0] * size[1], seed=seed)
         self.reset(seed=seed)
-        np.random.seed(seed)
         self._seed = seed
 
     class Action(IntEnum):
