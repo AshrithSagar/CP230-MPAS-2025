@@ -33,6 +33,9 @@ def main():
         episodes=2000,
         decay_epsilon=lambda eps: max(0.1, eps * 0.99),
     )
+    path, total_reward = agent.test()
+    print(env.render(path=path))
+    print(f"Total reward: {total_reward}")
 
 
 if __name__ == "__main__":

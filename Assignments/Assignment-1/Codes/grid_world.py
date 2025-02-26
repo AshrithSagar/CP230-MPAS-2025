@@ -12,6 +12,7 @@ import numpy as np
 random.seed(42)
 Coord = Tuple[int, int]
 Block = List[Coord]
+Path = List[Coord]
 
 
 class GridWorld(gym.Env):
@@ -33,44 +34,33 @@ class GridWorld(gym.Env):
         self.obstacles = obstacles
         self.rewards = rewards
         self.state = start
-
         self.action_space = gym.spaces.Discrete(4)
         self.observation_space = gym.spaces.Discrete(size[0] * size[1])
 
     def step(self, action: int) -> Tuple[Coord, int, bool, bool, Dict]:
-
-        # Calculate the next state based on the action
-        if action == 0:  # Right
-            next_state = (self.state[0], self.state[1] + 1)
-        elif action == 1:  # Down
-            next_state = (self.state[0] + 1, self.state[1])
-        elif action == 2:  # Left
-            next_state = (self.state[0], self.state[1] - 1)
-        elif action == 3:  # Up
-            next_state = (self.state[0] - 1, self.state[1])
-        else:
-            raise ValueError("Invalid action")
-
-        # Check if the next state is valid
-        if next_state[0] < 0 or next_state[0] >= self.size[0]:
+        next_state = {
+            0: (self.state[0], self.state[1] + 1),  # Right
+            1: (self.state[0] + 1, self.state[1]),  # Down
+            2: (self.state[0], self.state[1] - 1),  # Left
+            3: (self.state[0] - 1, self.state[1]),  # Up
+        }.get(action, self.state)
+        if (
+            not (0 <= next_state[0] < self.size[0])
+            or not (0 <= next_state[1] < self.size[1])
+            or any(next_state in obstacle for obstacle in self.obstacles)
+        ):
             next_state = self.state
-        if next_state[1] < 0 or next_state[1] >= self.size[1]:
-            next_state = self.state
-        for obstacle in self.obstacles:
-            if next_state in obstacle:
-                next_state = self.state
-                break
         self.state = next_state
         terminated = self.state in self.goal
-
-        # Calculate the reward
-        if terminated:
-            reward = self.rewards["goal"]
-        elif any([self.state in obstacle for obstacle in self.obstacles]):
-            reward = self.rewards["obstacle"]
-        else:
-            reward = self.rewards["default"]
-
+        reward = (
+            self.rewards["goal"]
+            if terminated
+            else (
+                self.rewards["obstacle"]
+                if any(self.state in obstacle for obstacle in self.obstacles)
+                else self.rewards["default"]
+            )
+        )
         return self.state, reward, terminated, False, {}
 
     def reset(self, seed: int = None) -> Tuple[Coord, Dict]:
@@ -78,8 +68,11 @@ class GridWorld(gym.Env):
         self.state = self.start
         return self.state, {}
 
-    def render(self) -> str:
+    def render(self, path: Path = None) -> str:
         grid = np.full(self.size, ".")
+        if path is not None:
+            for coord in path:
+                grid[coord] = "*"
         grid[self.start] = "S"
         for goal in self.goal:
             grid[goal] = "G"
