@@ -3,13 +3,11 @@ grid_world.py
 GridWorld environment
 """
 
-import random
 from typing import Dict, List, Tuple
 
 import gymnasium as gym
 import numpy as np
 
-random.seed(42)
 Coord = Tuple[int, int]
 Block = List[Coord]
 Path = List[Coord]

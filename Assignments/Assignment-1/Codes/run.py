@@ -21,7 +21,7 @@ def main():
         ],
         rewards={"goal": 1000, "obstacle": -200, "default": -1},
     )
-    print(env.render())
+    env.reset(seed=42)
     agent = QLearningAgent(
         env,
         alpha=0.5,
@@ -30,12 +30,13 @@ def main():
         initial_q_table=None,
     )
     agent.train(
-        episodes=10000,
+        episodes=3000,
         decay_epsilon=lambda eps: max(0.1, eps * 0.99),
     )
     path, total_reward = agent.test()
     print(env.render(path=path))
     print(f"Total reward: {total_reward}")
+    print(f"Path length: {len(path)}")
 
 
 if __name__ == "__main__":
