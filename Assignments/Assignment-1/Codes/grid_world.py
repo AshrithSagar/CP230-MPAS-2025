@@ -3,6 +3,7 @@ grid_world.py
 GridWorld environment
 """
 
+from enum import IntEnum
 from typing import Dict, List, Tuple
 
 import gymnasium as gym
@@ -36,12 +37,18 @@ class GridWorld(gym.Env):
         self.action_space = gym.spaces.Discrete(4)
         self.observation_space = gym.spaces.Discrete(size[0] * size[1])
 
+    class Action(IntEnum):
+        RIGHT = 0
+        DOWN = 1
+        LEFT = 2
+        UP = 3
+
     def step(self, action: int) -> Tuple[Coord, int, bool, bool, Dict]:
         next_state = {
-            0: (self.state[0], self.state[1] + 1),  # Right
-            1: (self.state[0] + 1, self.state[1]),  # Down
-            2: (self.state[0], self.state[1] - 1),  # Left
-            3: (self.state[0] - 1, self.state[1]),  # Up
+            GridWorld.Action.RIGHT.value: (self.state[0], self.state[1] + 1),
+            GridWorld.Action.DOWN.value: (self.state[0] + 1, self.state[1]),
+            GridWorld.Action.LEFT.value: (self.state[0], self.state[1] - 1),
+            GridWorld.Action.UP.value: (self.state[0] - 1, self.state[1]),
         }.get(action, self.state)
         if (
             not (0 <= next_state[0] < self.size[0])

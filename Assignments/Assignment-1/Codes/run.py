@@ -5,6 +5,7 @@ Run the Q-Learning agent on the GridWorld environment
 
 from grid_world import GridWorld
 from q_learning import QLearningAgent
+from utils import *
 
 
 def main():
@@ -34,7 +35,7 @@ def main():
         decay_epsilon=lambda eps: max(0.1, eps * 0.99),
     )
     path, total_reward = agent.test()
-    env.render(path=path)
+    env.render(mode="ansi", path=path)
     print(f"Total reward: {total_reward}")
     print(f"Path length: {len(path)}")
 
