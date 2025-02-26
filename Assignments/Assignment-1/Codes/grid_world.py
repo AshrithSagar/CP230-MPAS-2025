@@ -69,15 +69,12 @@ class GridWorld(gym.Env):
 
     def render(self, mode: str = "ansi", path: Path = None, show: bool = True):
         grid = np.full(self.size, ".")
-        if path is not None:
-            for coord in path:
-                grid[coord] = "*"
-        grid[self.start] = "S"
-        for goal in self.goal:
-            grid[goal] = "G"
         for obstacle in self.obstacles:
-            for coord in obstacle:
-                grid[coord] = "X"
+            grid[tuple(zip(*obstacle))] = "X"
+        if path:
+            grid[tuple(zip(*path))] = "*"
+        grid[self.start] = "S"
+        grid[tuple(zip(*self.goal))] = "G"
         if mode == "ansi":
             ansi = "\n".join([" ".join(row) for row in grid])
             if show:
