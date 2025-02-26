@@ -21,6 +21,7 @@ def main():
         ],
         rewards={"goal": 1000, "obstacle": -200, "default": -1},
         slippage=None,
+        obstacle_penalty=None,
     )
     agent = QLearningAgent(
         env,

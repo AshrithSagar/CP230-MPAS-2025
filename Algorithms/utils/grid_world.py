@@ -9,6 +9,7 @@ from typing import Dict, List, Tuple
 import gymnasium as gym
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial.distance import cityblock
 
 Coord = Tuple[int, int]
 Block = List[Coord]
@@ -28,6 +29,7 @@ class GridWorld(gym.Env):
         obstacles: List[Block],
         rewards: Dict[str, int] = {"goal": 100, "obstacle": -10, "default": -1},
         slippage: float = None,
+        obstacle_penalty: float = None,
         seed: int = 42,
     ):
         self.size = size
@@ -36,6 +38,7 @@ class GridWorld(gym.Env):
         self.obstacles = obstacles
         self.rewards = rewards
         self.slippage = slippage
+        self.obstacle_penalty = obstacle_penalty
         self.action_space = gym.spaces.Discrete(4, seed=seed)
         self.observation_space = gym.spaces.Discrete(size[0] * size[1], seed=seed)
         self.reset(seed=seed)
@@ -46,6 +49,13 @@ class GridWorld(gym.Env):
         DOWN = 1
         LEFT = 2
         UP = 3
+
+    def _get_obstacle_penalty(self, state: Coord) -> int:
+        """Get the penalty for being close to an obstacle"""
+        if not self.obstacle_penalty:
+            return 0
+        min_distance = min(cityblock(state, c) for obs in self.obstacles for c in obs)
+        return round(self.obstacle_penalty * min_distance)
 
     def step(self, action: int) -> Tuple[Coord, int, bool, bool, Dict]:
         if self.slippage and np.random.rand() < self.slippage:
@@ -88,7 +98,7 @@ class GridWorld(gym.Env):
             else (
                 self.rewards["obstacle"]
                 if any(self.state in obstacle for obstacle in self.obstacles)
-                else self.rewards["default"]
+                else self.rewards["default"] - self._get_obstacle_penalty(self.state)
             )
         )
         return self.state, reward, terminated, False, {}
