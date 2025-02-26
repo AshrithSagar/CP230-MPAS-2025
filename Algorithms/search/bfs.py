@@ -6,7 +6,7 @@ Breadth-first search algorithm
 from queue import Queue
 from typing import Dict, List, Union
 
-from ..utils.graph import Graph, Vertex
+from utils.graph import Graph, Vertex
 
 
 def BFS(graph: Graph, start: Union[str, Vertex]) -> List[Vertex]:
