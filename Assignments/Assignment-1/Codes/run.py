@@ -24,13 +24,13 @@ def main():
     print(env.render())
     agent = QLearningAgent(
         env,
-        alpha=0.1,
-        gamma=0.9,
-        epsilon=0.5,
+        alpha=0.5,
+        gamma=0.99,
+        epsilon=0.9,
         initial_q_table=None,
     )
     agent.train(
-        episodes=2000,
+        episodes=10000,
         decay_epsilon=lambda eps: max(0.1, eps * 0.99),
     )
     path, total_reward = agent.test()
