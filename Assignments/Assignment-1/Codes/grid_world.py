@@ -6,6 +6,7 @@ GridWorld environment
 from typing import Dict, List, Tuple
 
 import gymnasium as gym
+import matplotlib.pyplot as plt
 import numpy as np
 
 Coord = Tuple[int, int]
@@ -16,7 +17,7 @@ Path = List[Coord]
 class GridWorld(gym.Env):
     """GridWorld environment"""
 
-    metadata = {"render.modes": ["ansi"]}
+    metadata = {"render.modes": ["ansi", "rgb_array"]}
 
     def __init__(
         self,
@@ -66,7 +67,7 @@ class GridWorld(gym.Env):
         self.state = self.start
         return self.state, {}
 
-    def render(self, path: Path = None) -> str:
+    def render(self, mode: str = "ansi", path: Path = None, show: bool = True):
         grid = np.full(self.size, ".")
         if path is not None:
             for coord in path:
@@ -77,4 +78,27 @@ class GridWorld(gym.Env):
         for obstacle in self.obstacles:
             for coord in obstacle:
                 grid[coord] = "X"
-        return "\n".join([" ".join(row) for row in grid])
+        if mode == "ansi":
+            ansi = "\n".join([" ".join(row) for row in grid])
+            if show:
+                print(ansi)
+            return ansi
+        elif mode == "rgb_array":
+            color_map = {
+                ".": np.array([255, 255, 255]),
+                "*": np.array([255, 255, 0]),
+                "S": np.array([0, 0, 255]),
+                "G": np.array([0, 255, 0]),
+                "X": np.array([255, 0, 0]),
+            }
+            rgb_array = np.zeros((self.size[0], self.size[1], 3), dtype=np.uint8)
+            for i in range(self.size[0]):
+                for j in range(self.size[1]):
+                    cell = grid[i, j]
+                    rgb_array[i, j] = color_map[cell]
+            if show:
+                plt.imshow(rgb_array)
+                plt.show()
+            return rgb_array
+        else:
+            raise ValueError(f"Unsupported render mode: {mode}")

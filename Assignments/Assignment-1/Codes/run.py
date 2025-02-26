@@ -34,7 +34,7 @@ def main():
         decay_epsilon=lambda eps: max(0.1, eps * 0.99),
     )
     path, total_reward = agent.test()
-    print(env.render(path=path))
+    env.render(path=path)
     print(f"Total reward: {total_reward}")
     print(f"Path length: {len(path)}")
 
