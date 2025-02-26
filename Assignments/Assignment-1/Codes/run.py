@@ -19,17 +19,20 @@ def main():
             [(30, 10), (30, 11), (31, 10), (31, 11), (32, 10)],
             [(35, 35), (35, 36), (36, 35), (36, 36), (37, 35)],
         ],
-        rewards={"goal": 100, "obstacle": -100, "default": -1},
+        rewards={"goal": 1000, "obstacle": -200, "default": -1},
     )
     print(env.render())
     agent = QLearningAgent(
         env,
         alpha=0.1,
         gamma=0.9,
-        epsilon=0.1,
+        epsilon=0.5,
         initial_q_table=None,
     )
-    agent.train(episodes=1000)
+    agent.train(
+        episodes=2000,
+        decay_epsilon=lambda eps: max(0.1, eps * 0.99),
+    )
 
 
 if __name__ == "__main__":

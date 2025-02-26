@@ -66,7 +66,7 @@ class GridWorld(gym.Env):
         # Calculate the reward
         if terminated:
             reward = self.rewards["goal"]
-        elif self.state in self.obstacles:
+        elif any([self.state in obstacle for obstacle in self.obstacles]):
             reward = self.rewards["obstacle"]
         else:
             reward = self.rewards["default"]

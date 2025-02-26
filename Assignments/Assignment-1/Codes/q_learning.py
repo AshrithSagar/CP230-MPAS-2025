@@ -45,12 +45,13 @@ class QLearningAgent:
         index = state[0] * self.env.size[1] + state[1]
         self.q_table[index, action] = value
 
-    def _train_episode(self) -> None:
+    def _train_episode(self, epsilon: float = None) -> None:
         """Train the agent for a single episode"""
         state, _ = self.env.reset()
+        epsilon = epsilon or self.epsilon
         terminated = False
         while not terminated:
-            if np.random.rand() < self.epsilon:
+            if np.random.rand() < epsilon:
                 action = self.env.action_space.sample()
             else:
                 action = np.argmax(self._get_q_value(state))
@@ -63,22 +64,29 @@ class QLearningAgent:
             self._set_q_value(state, action, q_value)
             state = next_state
 
-    def train(self, episodes: int) -> None:
+    def train(self, episodes: int, decay_epsilon: callable = None) -> None:
         with Progress() as progress:
             task = progress.add_task("[green]Training...", total=episodes)
+            epsilon = self.epsilon
             for _ in range(episodes):
-                self._train_episode()
+                self._train_episode(epsilon=epsilon)
+                if decay_epsilon is not None:
+                    epsilon = decay_epsilon(epsilon)
                 progress.advance(task)
 
-    def test(self) -> Tuple[List[Coord], int]:
+    def test(self, max_steps: int = None) -> Tuple[List[Coord], int]:
+        if max_steps is None:
+            max_steps = self.env.size[0] * self.env.size[1]
         state, _ = self.env.reset()
         path = [state]
         total_reward = 0
         terminated = False
-        while not terminated:
+        steps = 0
+        while not terminated and steps < max_steps:
             action = np.argmax(self._get_q_value(state))
             next_state, reward, terminated, _, _ = self.env.step(action)
             path.append(next_state)
             total_reward += reward
             state = next_state
+            steps += 1
         return path, total_reward
