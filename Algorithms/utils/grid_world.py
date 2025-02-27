@@ -139,10 +139,20 @@ class GridWorld(gym.Env):
         grid[tuple(zip(*self.goal))] = "G"
         return grid
 
-    def _render_ansi(self, grid: np.ndarray, show: bool) -> str:
-        ansi = "\n".join([" ".join(row) for row in grid])
+    def _render_ansi(self, grid: np.ndarray, show: bool, use_color: bool = True) -> str:
+        if use_color:
+            color_map = {
+                ".": "\033[0m",  # Default
+                "*": "\033[33m",  # Yellow
+                "S": "\033[94m",  # Blue
+                "G": "\033[92m",  # Green
+                "X": "\033[91m",  # Red
+            }
+        else:
+            color_map = {".": "", "*": "", "S": "", "G": "", "X": ""}
+        ansi = "\n".join(" ".join(f"{color_map[c]}{c}" for c in r) for r in grid)
         if show:
-            print(ansi)
+            print(ansi, end="\033[0m\n" if use_color else "\n")
         return ansi
 
     def _render_rgb_array(self, grid: np.ndarray, show: bool) -> np.ndarray:
