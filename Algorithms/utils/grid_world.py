@@ -43,6 +43,7 @@ class GridWorld(gym.Env):
         self.action_space = gym.spaces.Discrete(4, seed=seed)
         self.observation_space = gym.spaces.Discrete(size[0] * size[1], seed=seed)
         self.reset(seed=seed)
+        np.random.seed(seed)
         self.obstacle_penalties = self._compute_obstacle_penalties()
 
     class Action(IntEnum):
