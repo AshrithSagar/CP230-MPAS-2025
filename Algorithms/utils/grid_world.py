@@ -121,6 +121,15 @@ class GridWorld(gym.Env):
         return self.state, {}
 
     def render(self, mode: str = "ansi", path: Path = None, show: bool = True):
+        grid = self._create_grid(path)
+        if mode == "ansi":
+            return self._render_ansi(grid, show)
+        elif mode == "rgb_array":
+            return self._render_rgb_array(grid, show)
+        else:
+            raise ValueError(f"Unsupported render mode: {mode}")
+
+    def _create_grid(self, path: Path = None) -> np.ndarray:
         grid = np.full(self.size, ".")
         for obstacle in self.obstacles:
             grid[tuple(zip(*obstacle))] = "X"
@@ -128,27 +137,30 @@ class GridWorld(gym.Env):
             grid[tuple(zip(*path))] = "*"
         grid[self.start] = "S"
         grid[tuple(zip(*self.goal))] = "G"
-        if mode == "ansi":
-            ansi = "\n".join([" ".join(row) for row in grid])
-            if show:
-                print(ansi)
-            return ansi
-        elif mode == "rgb_array":
-            color_map = {
-                ".": np.array([255, 255, 255]),
-                "*": np.array([255, 255, 0]),
-                "S": np.array([0, 0, 255]),
-                "G": np.array([0, 255, 0]),
-                "X": np.array([255, 0, 0]),
-            }
-            rgb_array = np.zeros((self.size[0], self.size[1], 3), dtype=np.uint8)
-            for i in range(self.size[0]):
-                for j in range(self.size[1]):
-                    cell = grid[i, j]
-                    rgb_array[i, j] = color_map[cell]
-            if show:
-                plt.imshow(rgb_array)
-                plt.show()
-            return rgb_array
-        else:
-            raise ValueError(f"Unsupported render mode: {mode}")
+        return grid
+
+    def _render_ansi(self, grid: np.ndarray, show: bool) -> str:
+        ansi = "\n".join([" ".join(row) for row in grid])
+        if show:
+            print(ansi)
+        return ansi
+
+    def _render_rgb_array(self, grid: np.ndarray, show: bool) -> np.ndarray:
+        color_map = {
+            ".": np.array([255, 255, 255]),  # White
+            "*": np.array([255, 255, 0]),  # Yellow
+            "S": np.array([0, 0, 255]),  # Blue
+            "G": np.array([0, 255, 0]),  # Green
+            "X": np.array([255, 0, 0]),  # Red
+        }
+        rgb_array = np.zeros((self.size[0], self.size[1], 3), dtype=np.uint8)
+        for i, row in enumerate(grid):
+            for j, cell in enumerate(row):
+                rgb_array[i, j] = color_map[cell]
+        if show:
+            plt.imshow(rgb_array)
+            plt.xticks([])
+            plt.yticks([])
+            plt.tight_layout()
+            plt.show()
+        return rgb_array
