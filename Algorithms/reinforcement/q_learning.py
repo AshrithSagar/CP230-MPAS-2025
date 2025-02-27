@@ -3,7 +3,7 @@ q_learning.py
 Q-Learning algorithm
 """
 
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from rich.progress import Progress
@@ -64,15 +64,32 @@ class QLearningAgent:
             self._set_q_value(state, action, q_value)
             state = next_state
 
-    def train(self, episodes: int, decay_epsilon: callable = None) -> None:
-        with Progress() as progress:
+    def train(
+        self,
+        episodes: int = None,
+        decay_epsilon: callable = None,
+        threshold: float = 1e-4,
+    ) -> Dict[str, Any]:
+        info: Dict[str, Any] = {"threshold": threshold}
+        with Progress(transient=True) as progress:
             task = progress.add_task("[green]Training...", total=episodes)
-            epsilon = self.epsilon
-            for _ in range(episodes):
+            episode, epsilon = 1, self.epsilon
+            prev_q_table = np.copy(self.q_table)
+            while True:
                 self._train_episode(epsilon=epsilon)
                 if decay_epsilon is not None:
                     epsilon = decay_epsilon(epsilon)
                 progress.advance(task)
+                if np.max(np.abs(self.q_table - prev_q_table)) < threshold:
+                    print(f"Converged after {episode} episodes (threshold {threshold})")
+                    break
+                elif episodes is not None and episode >= episodes:
+                    print(f"Completed {episodes} episodes")
+                    break
+                prev_q_table = np.copy(self.q_table)
+                episode += 1
+        info["episodes"] = episode
+        return info
 
     def test(self, max_steps: int = None) -> Tuple[List[Coord], int]:
         if max_steps is None:

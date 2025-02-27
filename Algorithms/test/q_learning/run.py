@@ -32,7 +32,7 @@ def main():
         initial_q_table=None,
     )
     agent.train(
-        episodes=3000,
+        episodes=None,
         decay_epsilon=lambda eps: max(0.1, eps * 0.99),
     )
     path, total_reward = agent.test()
