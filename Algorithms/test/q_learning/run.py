@@ -27,7 +27,7 @@ def main():
     agent = QLearningAgent(
         env,
         alpha=0.5,
-        gamma=0.99,
+        gamma=0.9,
         epsilon=0.9,
         initial_q_table=None,
     )
@@ -35,6 +35,7 @@ def main():
         episodes=None,
         threshold=1e-4,
         decay_epsilon=lambda eps: max(0.1, eps * 0.99),
+        timed=True,
     )
     path, total_reward = agent.test()
     env.render(mode="ansi", path=path)

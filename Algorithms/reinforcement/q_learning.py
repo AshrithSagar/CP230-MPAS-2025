@@ -3,6 +3,7 @@ q_learning.py
 Q-Learning algorithm
 """
 
+import timeit
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
@@ -69,12 +70,15 @@ class QLearningAgent:
         episodes: int = None,
         threshold: float = 1e-4,
         decay_epsilon: callable = None,
+        timed: bool = True,
     ) -> Dict[str, Any]:
         info: Dict[str, Any] = {"threshold": threshold}
+        episode, epsilon = 1, self.epsilon
+        prev_q_table = np.copy(self.q_table)
+        if timed:
+            start_time = timeit.default_timer()
         with Progress(transient=True) as progress:
             task = progress.add_task("[green]Training...", total=episodes)
-            episode, epsilon = 1, self.epsilon
-            prev_q_table = np.copy(self.q_table)
             while True:
                 self._train_episode(epsilon=epsilon)
                 if decay_epsilon is not None:
@@ -88,6 +92,10 @@ class QLearningAgent:
                     break
                 prev_q_table = np.copy(self.q_table)
                 episode += 1
+        if timed:
+            elapsed = timeit.default_timer() - start_time
+            info["time"] = elapsed
+            print(f"Training completed in {elapsed:.2f} seconds")
         info["episodes"] = episode
         return info
 
