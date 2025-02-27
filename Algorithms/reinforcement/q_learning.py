@@ -71,32 +71,37 @@ class QLearningAgent:
         threshold: float = 1e-4,
         decay_epsilon: callable = None,
         timed: bool = True,
+        verbose: bool = True,
     ) -> Dict[str, Any]:
         info: Dict[str, Any] = {"threshold": threshold}
-        episode, epsilon = 1, self.epsilon
-        prev_q_table = np.copy(self.q_table)
-        if timed:
-            start_time = timeit.default_timer()
+        episode, converged = 1, False
+        prev_q_table, epsilon = np.copy(self.q_table), self.epsilon
+        start_time = timeit.default_timer() if timed else None
         with Progress(transient=True) as progress:
             task = progress.add_task("[green]Training...", total=episodes)
             while True:
                 self._train_episode(epsilon=epsilon)
-                if decay_epsilon is not None:
+                if decay_epsilon:
                     epsilon = decay_epsilon(epsilon)
                 progress.advance(task)
-                if np.max(np.abs(self.q_table - prev_q_table)) < threshold:
-                    print(f"Completed {episode} episodes (threshold {threshold})")
+                if episodes and episode >= episodes:
                     break
-                elif episodes is not None and episode >= episodes:
-                    print(f"Completed {episodes} episodes")
+                if np.allclose(self.q_table, prev_q_table, atol=threshold):
+                    converged = True
                     break
                 prev_q_table = np.copy(self.q_table)
                 episode += 1
         if timed:
             elapsed = timeit.default_timer() - start_time
             info["time"] = elapsed
-            print(f"Training completed in {elapsed:.2f} seconds")
         info["episodes"] = episode
+        if verbose:
+            print("Training completed:")
+            print(f" Episodes: {episode}")
+            if converged:
+                print(f" Threshold: {threshold}")
+            if timed:
+                print(f" Time: {elapsed:.3f}s")
         return info
 
     def test(self, max_steps: int = None) -> Tuple[List[Coord], int]:
