@@ -67,8 +67,8 @@ class QLearningAgent:
     def train(
         self,
         episodes: int = None,
-        decay_epsilon: callable = None,
         threshold: float = 1e-4,
+        decay_epsilon: callable = None,
     ) -> Dict[str, Any]:
         info: Dict[str, Any] = {"threshold": threshold}
         with Progress(transient=True) as progress:
@@ -81,7 +81,7 @@ class QLearningAgent:
                     epsilon = decay_epsilon(epsilon)
                 progress.advance(task)
                 if np.max(np.abs(self.q_table - prev_q_table)) < threshold:
-                    print(f"Converged after {episode} episodes (threshold {threshold})")
+                    print(f"Completed {episode} episodes (threshold {threshold})")
                     break
                 elif episodes is not None and episode >= episodes:
                     print(f"Completed {episodes} episodes")
