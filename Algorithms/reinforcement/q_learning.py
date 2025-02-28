@@ -4,11 +4,11 @@ Q-Learning algorithm
 """
 
 import timeit
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 import numpy as np
 from rich.progress import Progress
-from utils.grid_world import Coord, GridWorld
+from utils.grid_world import Coord, GridWorld, Path
 
 
 class QLearningAgent:
@@ -102,19 +102,21 @@ class QLearningAgent:
                 print(f" Time: {elapsed:.3f}s")
         return info
 
-    def test(self, max_steps: int = None) -> Tuple[List[Coord], int]:
+    def test(self, max_steps: int = None, verbose: bool = True) -> Tuple[Path, float]:
         if max_steps is None:
             max_steps = self.env.unwrapped.size[0] * self.env.unwrapped.size[1]
         state, _ = self.env.reset()
-        path = [state]
-        total_reward = 0
-        terminated = False
-        steps = 0
-        while not terminated and steps < max_steps:
+        path, done, steps, total_reward = [state], False, 0, 0.0
+        while not done and steps < max_steps:
             action = np.argmax(self._get_q_value(state))
-            next_state, reward, terminated, _, _ = self.env.step(action)
+            next_state, reward, terminated, truncated, _ = self.env.step(action)
+            done = terminated or truncated
             path.append(next_state)
             total_reward += reward
             state = next_state
             steps += 1
+        self.env.unwrapped.path = path
+        if verbose:
+            print(f"Total reward: {total_reward}")
+            print(f"Path length: {len(path)}")
         return path, total_reward

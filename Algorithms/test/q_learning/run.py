@@ -27,10 +27,8 @@ def main():
         threshold=1e-4,
         decay_epsilon=lambda eps: max(0.1, eps * 0.99),
     )
-    env.unwrapped.path, total_reward = agent.test()
+    agent.test()
     env.render()
-    print(f"Total reward: {total_reward}")
-    print(f"Path length: {len(env.unwrapped.path)}")
 
 
 if __name__ == "__main__":
