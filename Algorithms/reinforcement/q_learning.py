@@ -29,22 +29,20 @@ class QLearningAgent:
 
         if initial_q_table is not None:
             assert initial_q_table.shape == (
-                env.observation_space.n,
+                *env.observation_space.nvec,
                 env.action_space.n,
             )
             self.q_table = initial_q_table
         else:
-            self.q_table = np.zeros((env.observation_space.n, env.action_space.n))
+            self.q_table = np.zeros((*env.observation_space.nvec, env.action_space.n))
 
     def _get_q_value(self, state: Coord, action: int = None) -> np.ndarray:
-        index = state[0] * self.env.size[1] + state[1]
         if action is not None:
-            return self.q_table[index, action]
-        return self.q_table[index]
+            return self.q_table[state[0], state[1], action]
+        return self.q_table[state[0], state[1]]
 
     def _set_q_value(self, state: Coord, action: int, value: float) -> None:
-        index = state[0] * self.env.size[1] + state[1]
-        self.q_table[index, action] = value
+        self.q_table[state[0], state[1], action] = value
 
     def _train_episode(self, epsilon: float = None) -> None:
         """Train the agent for a single episode"""
@@ -106,7 +104,7 @@ class QLearningAgent:
 
     def test(self, max_steps: int = None) -> Tuple[List[Coord], int]:
         if max_steps is None:
-            max_steps = self.env.size[0] * self.env.size[1]
+            max_steps = self.env.unwrapped.size[0] * self.env.unwrapped.size[1]
         state, _ = self.env.reset()
         path = [state]
         total_reward = 0

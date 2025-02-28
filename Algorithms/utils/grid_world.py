@@ -4,7 +4,7 @@ GridWorld environment
 """
 
 from enum import IntEnum
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import gymnasium as gym
 import matplotlib.pyplot as plt
@@ -19,7 +19,7 @@ Path = List[Coord]
 class GridWorld(gym.Env):
     """GridWorld environment"""
 
-    metadata = {"render.modes": ["ansi", "rgb_array"]}
+    metadata = {"render_modes": ["ansi", "rgb_array"], "render_fps": 4}
 
     def __init__(
         self,
@@ -30,6 +30,7 @@ class GridWorld(gym.Env):
         rewards: Dict[str, int] = {"goal": 100, "obstacle": -10, "default": -1},
         slippage: float = None,
         obstacle_penalty: float = None,
+        render_mode: str = "ansi",
         seed: int = 42,
     ):
         self.size = size
@@ -39,11 +40,11 @@ class GridWorld(gym.Env):
         self.rewards = rewards
         self.slippage = slippage
         self.obstacle_penalty = obstacle_penalty
-        self._seed = seed
-        self.action_space = gym.spaces.Discrete(4, seed=seed)
-        self.observation_space = gym.spaces.Discrete(size[0] * size[1], seed=seed)
-        self.reset(seed=seed)
-        np.random.seed(seed)
+        self.render_mode = render_mode
+        self.action_space = gym.spaces.Discrete(4)
+        self.observation_space = gym.spaces.MultiDiscrete([size[0], size[1]])
+        self.seed(seed=seed)
+        self.path: Path = None
         self.obstacle_penalties = self._compute_obstacle_penalties()
 
     class Action(IntEnum):
@@ -51,6 +52,12 @@ class GridWorld(gym.Env):
         DOWN = 1
         LEFT = 2
         UP = 3
+
+    def seed(self, seed: int = None) -> List[int]:
+        self._seed = seed
+        self.reset(seed=seed)
+        self.action_space.seed(seed)
+        self.observation_space.seed(seed)
 
     def _compute_obstacle_penalties(self) -> np.ndarray:
         """Compute the penalty for being close to an obstacle."""
@@ -69,8 +76,8 @@ class GridWorld(gym.Env):
         penalties = np.round(penalties * self.obstacle_penalty).astype(int)
         return penalties
 
-    def step(self, action: int) -> Tuple[Coord, int, bool, bool, Dict]:
-        if self.slippage and np.random.rand() < self.slippage:
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, Dict]:
+        if self.slippage and self.np_random.random() < self.slippage:
             perpendicular_actions = {
                 GridWorld.Action.UP.value: [
                     GridWorld.Action.RIGHT.value,
@@ -89,7 +96,7 @@ class GridWorld(gym.Env):
                     GridWorld.Action.DOWN.value,
                 ],
             }
-            action = np.random.choice(perpendicular_actions[action])
+            action = self.np_random.choice(perpendicular_actions[action])
         next_state = {
             GridWorld.Action.RIGHT.value: (self.state[0], self.state[1] + 1),
             GridWorld.Action.DOWN.value: (self.state[0] + 1, self.state[1]),
@@ -113,33 +120,40 @@ class GridWorld(gym.Env):
                 else self.rewards["default"] - self.obstacle_penalties[self.state]
             )
         )
-        return self.state, reward, terminated, False, {}
+        return np.array(self.state), reward, terminated, False, {}
 
-    def reset(self, seed: int = None) -> Tuple[Coord, Dict]:
+    def reset(
+        self,
+        *,
+        seed: Optional[int] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[np.ndarray, Dict]:
         super().reset(seed=seed)
         self.state = self.start
-        return self.state, {}
+        return np.array(self.state), {}
 
-    def render(self, mode: str = "ansi", path: Path = None, show: bool = True):
-        grid = self._create_grid(path)
-        if mode == "ansi":
-            return self._render_ansi(grid, show)
-        elif mode == "rgb_array":
-            return self._render_rgb_array(grid, show)
+    def render(self):
+        grid = self._create_grid()
+        render_methods = {
+            "ansi": self._render_ansi,
+            "rgb_array": self._render_rgb_array,
+        }
+        if mode := render_methods.get(self.render_mode):
+            return mode(grid)
         else:
-            raise ValueError(f"Unsupported render mode: {mode}")
+            raise ValueError(f"Unsupported render mode: {self.render_mode}")
 
-    def _create_grid(self, path: Path = None) -> np.ndarray:
-        grid = np.full(self.size, ".")
+    def _create_grid(self) -> np.ndarray:
+        grid = np.full(self.size, ".", dtype=str)
         for obstacle in self.obstacles:
             grid[tuple(zip(*obstacle))] = "X"
-        if path:
-            grid[tuple(zip(*path))] = "*"
+        if self.path:
+            grid[tuple(zip(*self.path))] = "*"
         grid[self.start] = "S"
         grid[tuple(zip(*self.goal))] = "G"
         return grid
 
-    def _render_ansi(self, grid: np.ndarray, show: bool, use_color: bool = True) -> str:
+    def _render_ansi(self, grid: np.ndarray, use_color: bool = True) -> str:
         if use_color:
             color_map = {
                 ".": "\033[0m",  # Default
@@ -151,11 +165,10 @@ class GridWorld(gym.Env):
         else:
             color_map = {".": "", "*": "", "S": "", "G": "", "X": ""}
         ansi = "\n".join(" ".join(f"{color_map[c]}{c}" for c in r) for r in grid)
-        if show:
-            print(ansi, end="\033[0m\n" if use_color else "\n")
+        print(ansi, end="\033[0m\n" if use_color else "\n")
         return ansi
 
-    def _render_rgb_array(self, grid: np.ndarray, show: bool) -> np.ndarray:
+    def _render_rgb_array(self, grid: np.ndarray) -> np.ndarray:
         color_map = {
             ".": np.array([255, 255, 255]),  # White
             "*": np.array([255, 255, 0]),  # Yellow
@@ -167,10 +180,9 @@ class GridWorld(gym.Env):
         for i, row in enumerate(grid):
             for j, cell in enumerate(row):
                 rgb_array[i, j] = color_map[cell]
-        if show:
-            plt.imshow(rgb_array)
-            plt.xticks([])
-            plt.yticks([])
-            plt.tight_layout()
-            plt.show()
+        plt.imshow(rgb_array)
+        plt.xticks([])
+        plt.yticks([])
+        plt.tight_layout()
+        plt.show()
         return rgb_array
