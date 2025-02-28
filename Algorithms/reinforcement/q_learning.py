@@ -50,7 +50,7 @@ class QLearningAgent:
         epsilon = epsilon or self.epsilon
         terminated = False
         while not terminated:
-            if np.random.rand() < epsilon:
+            if self.env.np_random.random() < epsilon:
                 action = self.env.action_space.sample()
             else:
                 action = np.argmax(self._get_q_value(state))

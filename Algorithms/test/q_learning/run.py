@@ -13,7 +13,8 @@ def main():
         rewards={"goal": 1000, "obstacle": -200, "default": -1},
         slippage=None,
         obstacle_penalty=None,
-        seed=42,
+        render_mode="ansi",
+        seed=25,
     )
     agent = QLearningAgent(
         env,
