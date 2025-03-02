@@ -4,9 +4,10 @@ Value Iteration algorithm
 """
 
 import timeit
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 import numpy as np
+from numpy.typing import NDArray
 from rich.progress import Progress
 from utils.grid_world import Coord, GridWorld, Path
 
@@ -35,19 +36,22 @@ class ValueIterationAgent:
     def _set_v_value(self, state: Coord, value: float) -> None:
         self.v_table[state[0], state[1]] = value
 
+    def _get_q_values(self, state: Coord) -> NDArray:
+        q_values = np.zeros(self.env.action_space.n)
+        for action in range(self.env.action_space.n):
+            next_state = self.env.unwrapped._get_next_state(state, action)
+            reward = self.env.unwrapped._get_reward(next_state)
+            q_value = reward + self.gamma * self._get_v_value(next_state)
+            q_values[action] = q_value
+        return q_values
+
     def _train_episode(self) -> None:
         """Train the agent for a single episode"""
         for state in np.ndindex(self.v_table.shape):
             if self.env.unwrapped._in_terminal(state):
                 continue
-            q_values = []
-            for action in range(self.env.action_space.n):
-                next_state = self.env.unwrapped._get_next_state(state, action)
-                reward = self.env.unwrapped._get_reward(next_state)
-                q_value = reward + self.gamma * self._get_v_value(next_state)
-                q_values.append(q_value)
-            best_q_value = max(q_values)
-            self._set_v_value(state, best_q_value)
+            q_values = self._get_q_values(state)
+            self._set_v_value(state, np.max(q_values))
 
     def train(
         self,
@@ -90,8 +94,7 @@ class ValueIterationAgent:
         state, _ = self.env.reset()
         path, done, steps, total_reward = [state], False, 0, 0.0
         while not done and steps < max_steps:
-            next_states: List[Coord] = self.env.unwrapped._get_next_states(state)
-            action = np.argmax([self._get_v_value(s) for s in next_states])
+            action = np.argmax(self._get_q_values(state))
             next_state, reward, terminated, truncated, _ = self.env.step(action)
             done = terminated or truncated
             path.append(next_state)
