@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import gymnasium as gym
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 from scipy.spatial.distance import cityblock
 
 Coord = Tuple[int, int]
@@ -42,7 +43,7 @@ class GridWorld(gym.Env):
         self.obstacle_penalty = obstacle_penalty
         self.render_mode = render_mode
         self.action_space = gym.spaces.Discrete(4)
-        self.observation_space = gym.spaces.MultiDiscrete([size[0], size[1]])
+        self.observation_space = gym.spaces.MultiDiscrete(size)
         self.seed(seed=seed)
         self.path: Path = None
         self.obstacle_penalties = self._compute_obstacle_penalties()
@@ -53,30 +54,64 @@ class GridWorld(gym.Env):
         LEFT = 2
         UP = 3
 
-    def seed(self, seed: int = None) -> List[int]:
+    def seed(self, seed: int = None) -> None:
         self._seed = seed
         self.reset(seed=seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
 
-    def _compute_obstacle_penalties(self) -> np.ndarray:
+    def _compute_obstacle_penalties(self) -> NDArray:
         """Compute the penalty for being close to an obstacle."""
         penalties = np.zeros(self.size)
         if self.obstacle_penalty is None:
             return penalties
-        for i in range(self.size[0]):
-            for j in range(self.size[1]):
-                min_distance = float("inf")
-                for obstacle in self.obstacles:
-                    for coord in obstacle:
-                        distance = cityblock((i, j), coord)
-                        if distance != 0:
-                            min_distance = min(min_distance, 1 / distance)
-                penalties[i, j] = min_distance if min_distance != float("inf") else 0
+        for i, j in np.ndindex(self.size):
+            min_distance = float("inf")
+            for obstacle in self.obstacles:
+                for coord in obstacle:
+                    distance = cityblock((i, j), coord)
+                    if distance != 0:
+                        min_distance = min(min_distance, 1 / distance)
+            penalties[i, j] = min_distance if min_distance != float("inf") else 0
         penalties = np.round(penalties * self.obstacle_penalty).astype(int)
         return penalties
 
-    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, Dict]:
+    def _get_next_state(self, state: Coord, action: int) -> Coord:
+        next_state: Coord = {
+            GridWorld.Action.RIGHT.value: (state[0], state[1] + 1),
+            GridWorld.Action.DOWN.value: (state[0] + 1, state[1]),
+            GridWorld.Action.LEFT.value: (state[0], state[1] - 1),
+            GridWorld.Action.UP.value: (state[0] - 1, state[1]),
+        }.get(action, state)
+        next_state: Coord = (
+            np.clip(next_state[0], 0, self.size[0] - 1),
+            np.clip(next_state[1], 0, self.size[1] - 1),
+        )
+        return next_state
+
+    def _get_next_states(self, state: Coord) -> List[Coord]:
+        next_states: List[Coord] = []
+        for action in range(self.action_space.n):
+            next_states.append(self._get_next_state(state, action))
+        return next_states
+
+    def _in_terminal(self, state: Coord) -> bool:
+        return state in self.goal
+
+    def _in_obstacle(self, state: Coord) -> bool:
+        return any(state in obstacle for obstacle in self.obstacles)
+
+    def _get_reward(self, state: Coord, terminated: bool = None) -> float:
+        if terminated is None:
+            terminated = self._in_terminal(state)
+        if terminated:
+            return self.rewards["goal"]
+        elif self._in_obstacle(state):
+            return self.rewards["obstacle"]
+        else:
+            return self.rewards["default"] - self.obstacle_penalties[state]
+
+    def _slip(self, action: int) -> int:
         if self.slippage and self.np_random.random() < self.slippage:
             perpendicular_actions = {
                 GridWorld.Action.UP.value: [
@@ -97,29 +132,16 @@ class GridWorld(gym.Env):
                 ],
             }
             action = self.np_random.choice(perpendicular_actions[action])
-        next_state = {
-            GridWorld.Action.RIGHT.value: (self.state[0], self.state[1] + 1),
-            GridWorld.Action.DOWN.value: (self.state[0] + 1, self.state[1]),
-            GridWorld.Action.LEFT.value: (self.state[0], self.state[1] - 1),
-            GridWorld.Action.UP.value: (self.state[0] - 1, self.state[1]),
-        }.get(action, self.state)
-        if (
-            not (0 <= next_state[0] < self.size[0])
-            or not (0 <= next_state[1] < self.size[1])
-            or any(next_state in obstacle for obstacle in self.obstacles)
-        ):
+        return action
+
+    def step(self, action: int) -> Tuple[NDArray, float, bool, bool, Dict]:
+        action = self._slip(action)
+        next_state = self._get_next_state(self.state, action)
+        if self._in_obstacle(next_state):
             next_state = self.state
         self.state = next_state
-        terminated = self.state in self.goal
-        reward = (
-            self.rewards["goal"]
-            if terminated
-            else (
-                self.rewards["obstacle"]
-                if any(self.state in obstacle for obstacle in self.obstacles)
-                else self.rewards["default"] - self.obstacle_penalties[self.state]
-            )
-        )
+        terminated = self._in_terminal(self.state)
+        reward = self._get_reward(self.state, terminated)
         return np.array(self.state), reward, terminated, False, {}
 
     def reset(
@@ -127,7 +149,7 @@ class GridWorld(gym.Env):
         *,
         seed: Optional[int] = None,
         options: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[np.ndarray, Dict]:
+    ) -> Tuple[NDArray, Dict]:
         super().reset(seed=seed)
         self.state = self.start
         return np.array(self.state), {}
@@ -143,7 +165,7 @@ class GridWorld(gym.Env):
         else:
             raise ValueError(f"Unsupported render mode: {self.render_mode}")
 
-    def _create_grid(self) -> np.ndarray:
+    def _create_grid(self) -> NDArray:
         grid = np.full(self.size, ".", dtype=str)
         for obstacle in self.obstacles:
             grid[tuple(zip(*obstacle))] = "X"
@@ -153,7 +175,7 @@ class GridWorld(gym.Env):
         grid[tuple(zip(*self.goal))] = "G"
         return grid
 
-    def _render_ansi(self, grid: np.ndarray, use_color: bool = True) -> str:
+    def _render_ansi(self, grid: NDArray, use_color: bool = True) -> str:
         if use_color:
             color_map = {
                 ".": "\033[0m",  # Default
@@ -168,7 +190,7 @@ class GridWorld(gym.Env):
         print(ansi, end="\033[0m\n" if use_color else "\n")
         return ansi
 
-    def _render_rgb_array(self, grid: np.ndarray) -> np.ndarray:
+    def _render_rgb_array(self, grid: NDArray) -> NDArray:
         color_map = {
             ".": np.array([255, 255, 255]),  # White
             "*": np.array([255, 255, 0]),  # Yellow
