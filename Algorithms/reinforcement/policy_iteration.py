@@ -8,7 +8,7 @@ from typing import Any, Dict, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
-from rich.progress import Progress
+from rich.progress import Progress, TaskID
 from utils.grid_world import Coord, GridWorld, Path
 
 
@@ -47,8 +47,11 @@ class PolicyIterationAgent:
             q_values[action] = q_value
         return q_values
 
-    def _policy_evaluation(self, threshold: float = 1e-4) -> None:
+    def _policy_evaluation(
+        self, threshold: float = 1e-4, progress: Progress = None, task: TaskID = None
+    ) -> None:
         """Evaluate the current policy."""
+        iteration = 0
         while True:
             delta = 0
             for state in np.ndindex(self.v_table.shape):
@@ -61,6 +64,11 @@ class PolicyIterationAgent:
                 new_v = reward + self.gamma * self._get_v_value(next_state)
                 self._set_v_value(state, new_v)
                 delta = max(delta, abs(v - new_v))
+            iteration += 1
+            progress.update(
+                task,
+                description=f"[green]Evaluating Policy... (Iteration {iteration})",
+            )
             if delta < threshold:
                 break
 
@@ -89,11 +97,14 @@ class PolicyIterationAgent:
         episode, converged = 1, False
         start_time = timeit.default_timer() if timed else None
         with Progress(transient=True) as progress:
-            task = progress.add_task("[green]Training...", total=episodes)
+            evaluation = progress.add_task("[green]Evaluating Policy...", total=None)
+            improvement = progress.add_task("[blue]Improving Policy...", total=episodes)
             while True:
-                self._policy_evaluation(threshold)
+                self._policy_evaluation(
+                    threshold=threshold, progress=progress, task=evaluation
+                )
                 policy_stable = self._policy_improvement()
-                progress.advance(task)
+                progress.advance(improvement)
                 if policy_stable:
                     converged = True
                     break
