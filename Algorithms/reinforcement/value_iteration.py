@@ -8,7 +8,7 @@ from typing import Any, Dict, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
-from rich.progress import Progress
+from tqdm import tqdm
 from utils.grid_world import Coord, GridWorld, Path
 
 
@@ -63,18 +63,18 @@ class ValueIterationAgent:
         info: Dict[str, Any] = {"threshold": threshold}
         episode, converged, prev_v_table = 1, False, np.copy(self.v_table)
         start_time = timeit.default_timer() if timed else None
-        with Progress(transient=True) as progress:
-            task = progress.add_task("[green]Training...", total=episodes)
-            while True:
-                self._train_episode()
-                progress.advance(task)
-                if episodes and episode >= episodes:
-                    break
-                if np.allclose(self.v_table, prev_v_table, atol=threshold):
-                    converged = True
-                    break
-                prev_v_table = np.copy(self.v_table)
-                episode += 1
+        pbar = tqdm(desc="Training", total=episodes, leave=False)
+        while True:
+            self._train_episode()
+            pbar.update()
+            if episodes and episode >= episodes:
+                break
+            if np.allclose(self.v_table, prev_v_table, atol=threshold):
+                converged = True
+                break
+            prev_v_table = np.copy(self.v_table)
+            episode += 1
+        pbar.close()
         if timed:
             elapsed = timeit.default_timer() - start_time
             info["time"] = elapsed

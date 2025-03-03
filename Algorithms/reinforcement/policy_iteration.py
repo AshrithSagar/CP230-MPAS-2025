@@ -8,7 +8,7 @@ from typing import Any, Dict, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
-from rich.progress import Progress, TaskID
+from tqdm import tqdm
 from utils.grid_world import Coord, GridWorld, Path
 
 
@@ -47,11 +47,9 @@ class PolicyIterationAgent:
             q_values[action] = q_value
         return q_values
 
-    def _policy_evaluation(
-        self, threshold: float = 1e-4, progress: Progress = None, task: TaskID = None
-    ) -> None:
+    def _policy_evaluation(self, threshold: float = 1e-4) -> None:
         """Evaluate the current policy."""
-        iteration = 0
+        pbar = tqdm(desc="Evaluating policy", leave=False)
         while True:
             delta = 0
             for state in np.ndindex(self.v_table.shape):
@@ -64,13 +62,10 @@ class PolicyIterationAgent:
                 new_v = reward + self.gamma * self._get_v_value(next_state)
                 self._set_v_value(state, new_v)
                 delta = max(delta, abs(v - new_v))
-            iteration += 1
-            progress.update(
-                task,
-                description=f"[green]Evaluating Policy... (Iteration {iteration})",
-            )
             if delta < threshold:
                 break
+            pbar.update()
+        pbar.close()
 
     def _policy_improvement(self) -> bool:
         """Improve the current policy."""
@@ -96,21 +91,18 @@ class PolicyIterationAgent:
         info: Dict[str, Any] = {"threshold": threshold}
         episode, converged = 1, False
         start_time = timeit.default_timer() if timed else None
-        with Progress(transient=True) as progress:
-            evaluation = progress.add_task("[green]Evaluating Policy...", total=None)
-            improvement = progress.add_task("[blue]Improving Policy...", total=episodes)
-            while True:
-                self._policy_evaluation(
-                    threshold=threshold, progress=progress, task=evaluation
-                )
-                policy_stable = self._policy_improvement()
-                progress.advance(improvement)
-                if policy_stable:
-                    converged = True
-                    break
-                if episodes and episode >= episodes:
-                    break
-                episode += 1
+        pbar = tqdm(desc="Improving policy", total=episodes, leave=False)
+        while True:
+            self._policy_evaluation(threshold=threshold)
+            policy_stable = self._policy_improvement()
+            pbar.update()
+            if policy_stable:
+                converged = True
+                break
+            if episodes and episode >= episodes:
+                break
+            episode += 1
+        pbar.close()
         if timed:
             elapsed = timeit.default_timer() - start_time
             info["time"] = elapsed

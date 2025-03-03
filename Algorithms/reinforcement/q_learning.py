@@ -7,7 +7,7 @@ import timeit
 from typing import Any, Dict, Tuple
 
 import numpy as np
-from rich.progress import Progress
+from tqdm import tqdm
 from utils.grid_world import Coord, GridWorld, Path
 
 
@@ -75,20 +75,20 @@ class QLearningAgent:
         episode, converged = 1, False
         prev_q_table, epsilon = np.copy(self.q_table), self.epsilon
         start_time = timeit.default_timer() if timed else None
-        with Progress(transient=True) as progress:
-            task = progress.add_task("[green]Training...", total=episodes)
-            while True:
-                self._train_episode(epsilon=epsilon)
-                if decay_epsilon:
-                    epsilon = decay_epsilon(epsilon)
-                progress.advance(task)
-                if episodes and episode >= episodes:
-                    break
-                if np.allclose(self.q_table, prev_q_table, atol=threshold):
-                    converged = True
-                    break
-                prev_q_table = np.copy(self.q_table)
-                episode += 1
+        pbar = tqdm(desc="Training", total=episodes, leave=False)
+        while True:
+            self._train_episode(epsilon=epsilon)
+            if decay_epsilon:
+                epsilon = decay_epsilon(epsilon)
+            pbar.update()
+            if episodes and episode >= episodes:
+                break
+            if np.allclose(self.q_table, prev_q_table, atol=threshold):
+                converged = True
+                break
+            prev_q_table = np.copy(self.q_table)
+            episode += 1
+        pbar.close()
         if timed:
             elapsed = timeit.default_timer() - start_time
             info["time"] = elapsed
