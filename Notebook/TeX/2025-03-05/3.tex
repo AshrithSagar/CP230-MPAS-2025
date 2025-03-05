@@ -1,0 +1,25 @@
+\documentclass[tikz, border=5pt]{standalone}
+\usepackage{amsmath}
+
+\begin{document}
+\begin{tikzpicture}
+
+    %% Point of closest approach
+
+    % Axes
+    \draw[->] (-4,0) -- (4,0) node[right] {\( V_\theta \)};
+    \draw[->] (0,-4) -- (0,4) node[above] {\( V_R \)};
+    \draw (0,0) circle (3);
+
+    % Markers
+    \node[above] at (-3.7,-0.07) {\small \( V_R = 0 \)};
+    \node[above, rotate=90] at (0.07,-3.7) {\small \( V_\theta = 0 \)};
+
+    % Labels
+    \draw[blue] (3,0) node[circle, fill, inner sep=1pt] {} node[above left] {\( V_R = 0, V_\theta = c \)};
+    \node[below] at (3,0) {\parbox{2.5cm}{Point of \\ closest approach}};
+    \node[above right=-1] at (3,0) {\( B \)};
+    \draw[blue] (-3,0) node[circle, fill, inner sep=1pt] {} node[below right] {\( V_\theta = - c \)};
+
+\end{tikzpicture}
+\end{document}
