@@ -8,15 +8,15 @@
     % Mass M
     \coordinate (M) at (0,0);
     \draw[fill] (M) circle (0.05) node[below left=-2] {\( M \)};
-    \draw[->, thick] (M) -- ++(0.4,0.9) node[above] {\( \vec{V}_M \)};
+    \draw[->, thick] (M) -- ++(0.4,0.9) node[above] {\small \( \vec{V}_M \)};
 
     % Mass T
     \coordinate (T) at (3,1.5);
     \draw[fill] (T) circle (0.05) node[below right=-2] {\( T \)};
-    \draw[->, thick] (T) -- ++(-0.7,0.7) node[above right=-2] {\( \vec{V}_T \)};
+    \draw[->, thick] (T) -- ++(-0.7,0.7) node[above right=-2] {\small \( \vec{V}_T \)};
 
     % Line of separation
-    \draw[dashed] (M) -- (T) node[pos=0.55, above] {\( R \)};
+    \draw[dashed] (M) -- (T) node[pos=0.55, above] {\small \( R \)};
 
     % Reference
     \draw[dashed] (M) -- ++(1,0);
