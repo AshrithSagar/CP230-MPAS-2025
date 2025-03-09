@@ -11,13 +11,13 @@ In both cases, choose the initial conditions accordingly. Choose the values of a
 \subsection*{Solution (a): No collision case}
 
 \vspace*{-1em}
-\subsubsection*{Approach-1}
+\subsubsection*{Approach-1: (Lengthy expansions)}
 
 \vspace*{-3em}
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.7\textwidth]{figures/q1-1}
-    \vspace*{-3em}
+    \vspace*{-2em}
     \caption{
         Collision diagram
     }\label{fig:q1-1}
@@ -31,9 +31,11 @@ At any time \( t \), we can see that, provided the robots don't collide, the pos
 \end{align*}
 
 Since the robots don't collide, we have the condition that the distance between the robots is always greater than the sum of their radii, i.e.,
-\begin{align*}
-    d(t) & > R_1 + R_2
-\end{align*}
+\begin{equation*}
+    \boxed{
+        d(t) > R_1 + R_2, \quad \forall t \geq 0
+    }
+\end{equation*}
 
 The distance between the robots at time \( t \) follows
 \begin{align*}
@@ -46,7 +48,7 @@ The distance between the robots at time \( t \) follows
     \big((x_2 - x_1) + (v_{x2} - v_{x1})t\big)^2 + \big((y_2 - y_1) + (v_{y2} - v_{y1})t\big)^2
 \end{align*}
 
-Differentiating both sides with respect to \( t \) and setting the derivative to zero to find the minimum distance, we get the time of closest approach \( t_c \) as
+Differentiating both sides with respect to \( t \) and setting the derivative to zero to find the minimum distance, we get the \underline{time of closest approach \( t_c \)} as
 \begin{align*}
     \frac{d}{dt}d^2(t)
      & =
@@ -72,7 +74,7 @@ or in vector form
 \end{equation*}
 where \( \vec{r} = \begin{bmatrix} x_2 - x_1 \\ y_2 - y_1 \end{bmatrix} \) and \( \vec{v} = \begin{bmatrix} v_{x2} - v_{x1} \\ v_{y2} - v_{y1} \end{bmatrix} \).
 
-The corresponding distance at the point of closest approach follows
+The corresponding \underline{distance at the point of closest approach \( d_c \)} follows
 \begin{align*}
     d_c^2
     = d^2(t_c)
@@ -127,4 +129,27 @@ The corresponding distance at the point of closest approach follows
         =
         \frac{\big| (v_{x2} - v_{x1})(y_2 - y_1) - (v_{y2} - v_{y1})(x_2 - x_1) \big|}{\sqrt{(v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2}}
     }
+\end{equation*}
+
+\vspace*{-1em}
+\subsubsection*{Approach-2: (Relative velocities)}
+
+\vspace*{-3em}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figures/q1-2}
+    \vspace*{-2em}
+    \caption{
+        Collision diagram
+    }\label{fig:q1-2}
+\end{figure}
+
+Can consider \( v_r \) and \( v_\theta \) as the relative velocities of the robots in the radial and tangential directions respectively, and solve accordingly in this polar coordinate system.
+
+\vspace*{-1em}
+\subsection*{Solution (b): Collision case}
+
+When the robots first collide, we can see that the distance between the robots at the time of collision is equal to the sum of their radii, i.e.,
+\begin{equation*}
+    d = R_1 + R_2
 \end{equation*}
