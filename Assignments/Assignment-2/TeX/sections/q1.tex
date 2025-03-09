@@ -151,5 +151,52 @@ Can consider \( v_r \) and \( v_\theta \) as the relative velocities of the robo
 
 When the robots first collide, we can see that the distance between the robots at the time of collision is equal to the sum of their radii, i.e.,
 \begin{equation*}
-    d = R_1 + R_2
+    \boxed{ d = R_1 + R_2 }
 \end{equation*}
+
+The distance between the robots at time \( t \) follows, as before
+\begin{align*}
+    d^2(t)
+     & =
+    \big((x_2 + v_{x2}t) - (x_1 + v_{x1}t)\big)^2 + \big((y_2 + v_{y2}t) - (y_1 + v_{y1}t)\big)^2
+    \\ & =
+    \big((x_2 - x_1) + (v_{x2} - v_{x1})t\big)^2 + \big((y_2 - y_1) + (v_{y2} - v_{y1})t\big)^2
+\end{align*}
+Now, we have
+\begin{align*}
+    (R_1 + R_2)^2
+     & =
+    \big((x_2 - x_1) + (v_{x2} - v_{x1})t\big)^2 + \big((y_2 - y_1) + (v_{y2} - v_{y1})t\big)^2
+    \\ & =
+    (x_2 - x_1)^2 + (y_2 - y_1)^2
+    \\ & \qquad
+    + 2\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big)t
+    \\ & \qquad
+    + \big((v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2\big)t^2
+\end{align*}
+which is a quadratic equation in \( t \), which can be solved to find the times at which the robots first collide and then get out of collision.
+
+The determinant of the quadratic equation is
+\begin{align*}
+    \Delta
+     & =
+    4\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big)^2
+    \\ & \qquad
+    - 4\big((v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2\big)\big((x_2 - x_1)^2 + (y_2 - y_1)^2 - (R_1 + R_2)^2\big)
+\end{align*}
+For real collisions to occur, we need \( \Delta \geq 0 \).
+The two times at which the robots collide are given by
+\begin{align*}
+     &
+    \boxed{
+        t_{\text{first collision}}
+        =
+        \frac{-2\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big) - \sqrt{\Delta}}{2\big((v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2\big)}
+    }
+    \\ &
+    \boxed{
+        t_{\text{get out of collision}}
+        =
+        \frac{-2\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big) + \sqrt{\Delta}}{2\big((v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2\big)}
+    }
+\end{align*}
