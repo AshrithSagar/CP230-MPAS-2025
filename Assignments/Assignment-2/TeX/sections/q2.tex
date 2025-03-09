@@ -16,15 +16,16 @@ and for the second robot is
 \begin{equation*}
     \frac{(x - x_2)^2}{a_2^2} + \frac{(y - y_2)^2}{b_2^2} = 1
 \end{equation*}
-The distance between the robots at time \( t \) follows, as before
+
+We can consider the effective radius of the ellipses, and introduce eccentricity \( e \),
 \begin{align*}
-    d^2(t)
-     & =
-    \big((x_2 - x_1) + (v_{x2} - v_{x1})t\big)^2 + \big((y_2 - y_1) + (v_{y2} - v_{y1})t\big)^2
-    \\ & =
-    (x_2 - x_1)^2 + (y_2 - y_1)^2
-    \\ & \qquad
-    + 2\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big)t
-    \\ & \qquad
-    + \big((v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2\big)t^2
+    e_1 = \sqrt{1 - \frac{b_1^2}{a_1^2}}, \qquad
+    e_2 = \sqrt{1 - \frac{b_2^2}{a_2^2}}
 \end{align*}
+The effective radius of the ellipses are
+\begin{align*}
+    R_1 = a_1(1 - e_1), \qquad
+    R_2 = a_2(1 - e_2)
+\end{align*}
+
+The analysis can be done in a similar way as before, but with the new eccentricity factor \( e \) added in the equations.
