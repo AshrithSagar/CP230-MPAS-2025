@@ -5,3 +5,25 @@ the direction of their major axes.
 Again, choose the parameter values.
 
 \subsection*{Solution}
+
+Now, let the shapes of the robots be ellipses with major axes \( a_1 \) and \( a_2 \) and minor axes \( b_1 \) and \( b_2 \) respectively.
+The equation of the ellipse for the first robot is
+\begin{equation*}
+    \frac{(x - x_1)^2}{a_1^2} + \frac{(y - y_1)^2}{b_1^2} = 1
+\end{equation*}
+and for the second robot is
+\begin{equation*}
+    \frac{(x - x_2)^2}{a_2^2} + \frac{(y - y_2)^2}{b_2^2} = 1
+\end{equation*}
+The distance between the robots at time \( t \) follows, as before
+\begin{align*}
+    d^2(t)
+     & =
+    \big((x_2 - x_1) + (v_{x2} - v_{x1})t\big)^2 + \big((y_2 - y_1) + (v_{y2} - v_{y1})t\big)^2
+    \\ & =
+    (x_2 - x_1)^2 + (y_2 - y_1)^2
+    \\ & \qquad
+    + 2\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big)t
+    \\ & \qquad
+    + \big((v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2\big)t^2
+\end{align*}

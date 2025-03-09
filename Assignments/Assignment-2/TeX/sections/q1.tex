@@ -177,13 +177,17 @@ Now, we have
 which is a quadratic equation in \( t \), which can be solved to find the times at which the robots first collide and then get out of collision.
 
 The determinant of the quadratic equation is
-\begin{align*}
-    \Delta
-     & =
-    4\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big)^2
-    \\ & \qquad
-    - 4\big((v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2\big)\big((x_2 - x_1)^2 + (y_2 - y_1)^2 - (R_1 + R_2)^2\big)
-\end{align*}
+\begin{equation*}
+    \boxed{
+        \begin{aligned}
+            \Delta
+             & =
+            4\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big)^2
+            \\ & \qquad
+            - 4\big((v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2\big)\big((x_2 - x_1)^2 + (y_2 - y_1)^2 - (R_1 + R_2)^2\big)
+        \end{aligned}
+    }
+\end{equation*}
 For real collisions to occur, we need \( \Delta \geq 0 \).
 The two times at which the robots collide are given by
 \begin{align*}
