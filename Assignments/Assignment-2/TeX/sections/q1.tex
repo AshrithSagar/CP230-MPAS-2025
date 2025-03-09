@@ -8,7 +8,10 @@ Consider two robots of radii \( R_1 \) and \( R_2 \), moving in straight lines s
 In both cases, choose the initial conditions accordingly. Choose the values of all parameters such as radii, initial positions, directions, speeds, etc.
 
 \vspace*{-1em}
-\subsection*{Solution}
+\subsection*{Solution (a): No collision case}
+
+\vspace*{-1em}
+\subsubsection*{Approach-1}
 
 \vspace*{-3em}
 \begin{figure}[htbp]
@@ -69,9 +72,59 @@ or in vector form
 \end{equation*}
 where \( \vec{r} = \begin{bmatrix} x_2 - x_1 \\ y_2 - y_1 \end{bmatrix} \) and \( \vec{v} = \begin{bmatrix} v_{x2} - v_{x1} \\ v_{y2} - v_{y1} \end{bmatrix} \).
 
-The corresponding distance at the point of closest approach is given by
+The corresponding distance at the point of closest approach follows
 \begin{align*}
-    d_c^2(t_c)
+    d_c^2
+    = d^2(t_c)
      & =
-    \big((x_2 - x_1) + (v_{x2} - v_{x1})t_c\big)^2 + \big((y_2 - y_1) + (v_{y2} - v_{y1})t_c\big)^2
+    {\big((x_2 - x_1) + (v_{x2} - v_{x1})t_c\big)}^2 + {\big((y_2 - y_1) + (v_{y2} - v_{y1})t_c\big)}^2
+    \\ & =
+    (x_2 - x_1)^2 + (y_2 - y_1)^2
+    \\ & \qquad
+    + 2\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big)t_c
+    \\ & \qquad
+    + \big((v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2\big)t_c^2
+    \\ & =
+    (x_2 - x_1)^2 + (y_2 - y_1)^2
+    \\ & \qquad
+    - 2\frac{{\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big)}^2}{(v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2}
+    \\ & \qquad
+    + \frac{{\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big)}^2}{(v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2}
+    \\ & =
+    (x_2 - x_1)^2 + (y_2 - y_1)^2
+    \\ & \qquad
+    - \frac{{\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big)}^2}{(v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2}
 \end{align*}
+\begin{align*}
+    \implies
+    \big( (v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2 \big) d_c^2
+     & =
+    \big( (v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2 \big) \big( (x_2 - x_1)^2 + (y_2 - y_1)^2 \big)
+    \\ & \qquad
+    - \big( (x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1}) \big)^2
+    \\ & =
+    \cancel{(v_{x2} - v_{x1})^2 (x_2 - x_1)^2} + \cancel{(v_{y2} - v_{y1})^2 (y_2 - y_1)^2}
+    \\ & \qquad
+    + (v_{x2} - v_{x1})^2 (y_2 - y_1)^2 + (v_{y2} - v_{y1})^2 (x_2 - x_1)^2
+    \\ & \qquad
+    - \cancel{(x_2 - x_1)^2 (v_{x2} - v_{x1})^2} - \cancel{(y_2 - y_1)^2 (v_{y2} - v_{y1})^2}
+    \\ & \qquad
+    - 2 (x_2 - x_1)(v_{x2} - v_{x1})(y_2 - y_1)(v_{y2} - v_{y1})
+    \\ & =
+    \big( (v_{x2} - v_{x1})(y_2 - y_1) - (v_{y2} - v_{y1})(x_2 - x_1) \big)^2
+\end{align*}
+\begin{equation*}
+    \implies
+    d_c^2
+    =
+    \frac{\big( (v_{x2} - v_{x1})(y_2 - y_1) - (v_{y2} - v_{y1})(x_2 - x_1) \big)^2}{(v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2}
+\end{equation*}
+\begin{equation*}
+    \implies
+    d(t_c) =
+    \boxed{
+        d_c
+        =
+        \frac{\big| (v_{x2} - v_{x1})(y_2 - y_1) - (v_{y2} - v_{y1})(x_2 - x_1) \big|}{\sqrt{(v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2}}
+    }
+\end{equation*}
