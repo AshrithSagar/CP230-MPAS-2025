@@ -8,3 +8,59 @@ Consider two robots of radii \( R_1 \) and \( R_2 \), moving in straight lines s
 In both cases, choose the initial conditions accordingly. Choose the values of all parameters such as radii, initial positions, directions, speeds, etc.
 
 \subsection*{Solution}
+
+Let the initial positions of the robots be \( (x_1, y_1) \) and \( (x_2, y_2) \) respectively, and their velocities be \( (v_{x1}, v_{y1}) \) and \( (v_{x2}, v_{y2}) \) respectively.
+At any time \( t \), we can see that, provided the robots don't collide, the position of the robots follow the equations
+\begin{align*}
+    x_1(t) &= x_1 + v_{x1}t \quad \text{and} \quad y_1(t) = y_1 + v_{y1}t \\
+    x_2(t) &= x_2 + v_{x2}t \quad \text{and} \quad y_2(t) = y_2 + v_{y2}t
+\end{align*}
+
+Since the robots don't collide, we have the condition that the distance between the robots is always greater than the sum of their radii, i.e.,
+\begin{align*}
+    d(t) & > R_1 + R_2
+\end{align*}
+
+The distance between the robots at time \( t \) follows
+\begin{align*}
+    d^2(t)
+    & =
+    (x_2(t) - x_1(t))^2 + (y_2(t) - y_1(t))^2
+    \\ & =
+    \big((x_2 + v_{x2}t) - (x_1 + v_{x1}t)\big)^2 + \big((y_2 + v_{y2}t) - (y_1 + v_{y1}t)\big)^2
+    \\ & =
+    \big((x_2 - x_1) + (v_{x2} - v_{x1})t\big)^2 + \big((y_2 - y_1) + (v_{y2} - v_{y1})t\big)^2
+\end{align*}
+
+Differentiating both sides with respect to \( t \) and setting the derivative to zero to find the minimum distance, we get the time of closest approach \( t_c \) as
+\begin{align*}
+    \frac{d}{dt}d^2(t)
+    & =
+    2\big((x_2 - x_1) + (v_{x2} - v_{x1})t\big)(v_{x2} - v_{x1}) + 2\big((y_2 - y_1) + (v_{y2} - v_{y1})t\big)(v_{y2} - v_{y1})
+    \\ \implies
+    0
+    & =
+    2\big((x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})\big) + 2\big((v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2\big) t_c
+\end{align*}
+\begin{equation*}
+    \implies
+    \boxed{
+        t_c
+        =
+        -\frac{(x_2 - x_1)(v_{x2} - v_{x1}) + (y_2 - y_1)(v_{y2} - v_{y1})}{(v_{x2} - v_{x1})^2 + (v_{y2} - v_{y1})^2}
+    }
+\end{equation*}
+or in vector form
+\begin{equation*}
+    t_c
+    =
+    -\frac{\vec{r} \cdot \vec{v}}{\vec{v} \cdot \vec{v}}
+\end{equation*}
+where \( \vec{r} = \begin{bmatrix} x_2 - x_1 \\ y_2 - y_1 \end{bmatrix} \) and \( \vec{v} = \begin{bmatrix} v_{x2} - v_{x1} \\ v_{y2} - v_{y1} \end{bmatrix} \).
+
+The corresponding distance at the point of closest approach is given by
+\begin{align*}
+    d_c^2(t_c)
+    & =
+    \big((x_2 - x_1) + (v_{x2} - v_{x1})t_c\big)^2 + \big((y_2 - y_1) + (v_{y2} - v_{y1})t_c\big)^2
+\end{align*}
