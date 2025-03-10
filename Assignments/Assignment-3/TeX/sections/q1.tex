@@ -56,9 +56,23 @@ Collisions occur when \( V_R < 0 \).
       \\ \implies &
       \vert \alpha_A - \theta \vert < \cos^{-1} \left( \frac{1}{\gamma} \cos (\alpha_B - \theta) \right)
 \end{align*}
-since \( \cos(\cdot) \) is a decreasing function in \( [0, \pi] \). Thereby, the collision cone is given by
+since \( \cos(\cdot) \) is a decreasing function in \( [0, \pi] \). Thereby, defining \( \alpha_{A -} \) and \( \alpha_{A +} \) as
 \begin{equation*}
       \boxed{
-            \bar \alpha_A = \left \{ \alpha_A \Big| \vert \alpha_A - \theta \vert < \cos^{-1} \left( \frac{1}{\gamma} \cos (\alpha_B - \theta) \right) \right \}
+            \begin{aligned}
+                  \alpha_{A -}
+                   & =
+                  \theta - \cos^{-1} \left( \frac{1}{\gamma} \cos (\alpha_B - \theta) \right)
+                  \\
+                  \alpha_{A +}
+                   & =
+                  \theta + \cos^{-1} \left( \frac{1}{\gamma} \cos (\alpha_B - \theta) \right)
+            \end{aligned}
+      }
+\end{equation*}
+the collision cone is given by
+\begin{equation*}
+      \boxed{
+            \bar \alpha_A = \{ \alpha_A \mid \alpha_{A -} < \alpha_A < \alpha_{A +} \}
       }
 \end{equation*}
