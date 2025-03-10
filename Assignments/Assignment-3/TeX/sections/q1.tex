@@ -27,3 +27,38 @@ Assume values for \( \gamma = \frac{V_A}{V_B}, R_0, \cancel{\theta_0}, \alpha_{B
 
 \vspace*{-3em}
 \subsection*{Solution}
+
+\subsubsection*{Collision cones}
+
+The collision cone is the set of all possible directions of \( V_A \) such that \( A \) can collide with \( B \).
+The relative velocity along the line of separation is given by
+\begin{align*}
+      V_{R}
+       & =
+      V_B \cos (\alpha_B - \theta) - V_A \cos (\alpha_A - \theta)
+      \\
+      \implies
+      \frac{V_R}{V_B}
+       & =
+      \cos (\alpha_B - \theta) - \gamma \cos (\alpha_A - \theta)
+\end{align*}
+where \( \alpha_A \) is the angle between \( V_A \) and the reference.
+Collisions occur when \( V_R < 0 \).
+\begin{align*}
+      \implies &
+      \cos (\alpha_B - \theta) - \gamma \cos (\alpha_A - \theta) < 0
+      \\ \implies &
+      \cos (\alpha_B - \theta) < \gamma \cos (\alpha_A - \theta)
+\end{align*}
+\begin{align*}
+      \implies &
+      \cos (\alpha_A - \theta) > \frac{1}{\gamma} \cos (\alpha_B - \theta)
+      \\ \implies &
+      \vert \alpha_A - \theta \vert < \cos^{-1} \left( \frac{1}{\gamma} \cos (\alpha_B - \theta) \right)
+\end{align*}
+since \( \cos(\cdot) \) is a decreasing function in \( [0, \pi] \). Thereby, the collision cone is given by
+\begin{equation*}
+      \boxed{
+            \bar \alpha_A = \left \{ \alpha_A \Big| \vert \alpha_A - \theta \vert < \cos^{-1} \left( \frac{1}{\gamma} \cos (\alpha_B - \theta) \right) \right \}
+      }
+\end{equation*}
