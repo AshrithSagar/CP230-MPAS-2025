@@ -34,6 +34,7 @@ class GridWorld(gym.Env):
         render_mode: str = "ansi",
         seed: int = 42,
     ):
+        super().__init__()
         self.size = size
         self.start = start
         self.goal = goal
