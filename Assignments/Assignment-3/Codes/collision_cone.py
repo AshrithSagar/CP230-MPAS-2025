@@ -3,7 +3,7 @@ collision_cone.py
 Collision cone class
 """
 
-from typing import Dict, List, Tuple
+from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,8 +33,9 @@ class CollisionCone:
                 self.alpha_A.append(alphA)
         return self.alpha_A
 
-    def plot(self) -> None:
-        gamma = np.linspace(0, 2, 100)
+    def plot(self, gamma=None) -> None:
+        if gamma is None:
+            gamma = np.linspace(0, 2, 100)
         min_alphA = np.ones_like(gamma) * np.inf
         max_alphA = np.ones_like(gamma) * -np.inf
         for i, g in enumerate(gamma):
@@ -51,5 +52,4 @@ class CollisionCone:
         plt.title("$\\alpha_A$ vs. $\gamma$")
         plt.xlim(min(gamma), max(gamma))
         plt.ylim(0, 2 * np.pi)
-        plt.legend()
         plt.show()

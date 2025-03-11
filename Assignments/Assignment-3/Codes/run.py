@@ -17,7 +17,7 @@ def main():
         rB=2.0,
     )
     cc.compute()
-    cc.plot()
+    cc.plot(gamma=np.linspace(-50, 50, 100))
 
 
 if __name__ == "__main__":
