@@ -16,7 +16,10 @@ def main():
         alphB=np.radians(120),
         rB=2.0,
     )
-    cc.compute()
+    alpha_A = cc.compute()
+    for func, desc in [(min, "Minimum"), (max, "Maximum")]:
+        value = func(alpha_A).round(2)
+        print(f"{desc} alpha_A: {value} radians = {np.degrees(value).round(2)} degrees")
     cc.plot(gamma=np.linspace(-50, 50, 100))
 
 

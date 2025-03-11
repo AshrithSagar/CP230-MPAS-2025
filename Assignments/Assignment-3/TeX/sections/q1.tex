@@ -43,6 +43,47 @@ We have the following inequality, for collision to happen
 \end{equation*}
 
 \clearpage
+The collision cone parameters in the simulation were set to \( V_A = 10, V_B = 5, R_0 = 10, \theta = \frac{\pi}{6} = 30^\circ, \alpha_B = \frac{2\pi}{3} = 120^\circ, R_B = 2.0 \).
+
+\vspace*{-1em}
+\subsubsection*{Collision cone}
+
+Output:
+
+Minimum alpha\_A : 0.83 radians = 47.56 degrees
+
+Maximum alpha\_A : 3.35 radians = 191.94 degrees
+
+\vspace*{-1em}
+\subsubsection*{Different values of \( \gamma \)}
+
+\textbf{(a) No collision cone exists}
+
+\vspace*{-2em}
+\begin{figure}[htbp]
+      \centering
+      \includegraphics[width=0.6\textwidth]{./figures/f1.png}
+\end{figure}
+
+\vspace*{-1.5em}
+As we can see from the figure, for \( 0 < \gamma < 1 \), the collision cone does not exist.
+
+. \\
+\textbf{(b) Multiple collision cones}
+
+\vspace*{-1em}
+\begin{figure}[htbp]
+      \centering
+      \includegraphics[width=0.6\textwidth]{./figures/f2.png}
+\end{figure}
+
+\vspace*{-1.5em}
+Depending on how \( \gamma \) is defined, the multiple possibilities arise when \( V_A,  V_B \), and their negative values are considered.
+At most, there can be 2 collision cones.
+
+The above figure shows the cases when \( \gamma < 0 \).
+
+\clearpage
 \subsection*{Solution (incorrect)}
 
 This is included here just for the sake of completeness.
@@ -105,7 +146,8 @@ Thus, \( \cos^{-1} \left( \frac{1}{\gamma} \cos (\alpha_B - \theta) \right) \) i
 Therefore, no collision cone exists.
 Intuitively, we can see that if \( \gamma < 1 \iff V_A < V_B \), thereby \( A \) is slower than \( B \) and cannot catch up to \( B \).
 
-Therefore, the \underline{values of \( \gamma \) for which no collision cone exists are \( \gamma < 1 \)}. \\
+Therefore, the \underline{values of \( \gamma \) for which no collision cone exists are \( \gamma < 1 \)}.
+(Incorrect; This seems to be not neccessarily the case.) \\
 \textbf{(b) Multiple collision cones}
 
 If \( \gamma > 1 \), then \( \frac{1}{\gamma} < 1 \).
