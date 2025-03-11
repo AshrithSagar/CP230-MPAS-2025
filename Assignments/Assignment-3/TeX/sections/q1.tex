@@ -28,6 +28,25 @@ Assume values for \( \gamma = \frac{V_A}{V_B}, R_0, \cancel{\theta_0}, \alpha_{B
 \vspace*{-3em}
 \subsection*{Solution}
 
+Given the geometry as above, and in addition, \( B \) has a radius \( R_B \).
+We have the following equations, for some \( \alpha_A \),
+\begin{align*}
+      V_R      & = V_B \cos(\alpha_B - \theta) - V_A \cos(\alpha_A - \theta) \\
+      V_\theta & = V_B \sin(\alpha_B - \theta) - V_A \sin(\alpha_A - \theta)
+\end{align*}
+where \( V_R \) is the relative velocity along the line of separation and \( V_\theta \) is the relative velocity perpendicular to the line of separation.
+The collision cone is the set of all possible directions of \( V_A \) such that \( A \) can collide with \( B \).
+
+We have the following inequality, for collision to happen
+\begin{equation*}
+      \boxed{ (R_0^2 - R_B^2) {(V_B \sin (\alpha_B - \theta_0) - V_A \sin (\alpha_A - \theta_0))}^2 \leq R_B^2 {(V_B \cos (\alpha_B - \theta_0) - V_A \cos (\alpha_A - \theta_0))}^2 }
+\end{equation*}
+
+\clearpage
+\subsection*{Solution (incorrect)}
+
+This is included here just for the sake of completeness.
+
 \subsubsection*{Collision cones}
 
 The collision cone is the set of all possible directions of \( V_A \) such that \( A \) can collide with \( B \).
