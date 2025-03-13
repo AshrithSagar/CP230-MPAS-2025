@@ -13,10 +13,8 @@ Coord = Tuple[int, int]
 Block = List[Coord]
 Path = List[Coord]
 
-import gymnasium as gym
 
-
-class HamstrungSquadGame(gym.Env):
+class HamstrungSquadEnv(gym.Env):
     """Hamstrung squad game environment"""
 
     metadata = {"render.modes": ["ansi"]}
@@ -26,6 +24,7 @@ class HamstrungSquadGame(gym.Env):
         size: Tuple[int, int],
         start: Coord,
         goal: Block,
+        max_steps: int = 10,
         render_mode: str = "ansi",
         seed: int = 42,
     ):
@@ -33,9 +32,10 @@ class HamstrungSquadGame(gym.Env):
         self.size = size
         self.start = start
         self.goal = goal
+        self.max_steps = max_steps
         self.render_mode = render_mode
         self.action_space = gym.spaces.Discrete(4)
-        self.observation_space = gym.spaces.MultiDiscrete(size)
+        self.observation_space = gym.spaces.MultiDiscrete([*size, *size])
         self.seed(seed=seed)
 
     class Action(IntEnum):
