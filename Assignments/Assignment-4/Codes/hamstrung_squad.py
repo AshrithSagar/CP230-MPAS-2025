@@ -4,14 +4,13 @@ Hamstrung sqaud game environment
 """
 
 from enum import IntEnum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import gymnasium as gym
 from numpy.typing import NDArray
 
 Coord = Tuple[int, int]
-Block = List[Coord]
-Path = List[Coord]
+Coords = List[Coord]
 
 
 class HamstrungSquadEnv(gym.Env):
@@ -22,16 +21,15 @@ class HamstrungSquadEnv(gym.Env):
     def __init__(
         self,
         size: Tuple[int, int],
-        start: Coord,
-        goal: Block,
+        start: Dict[str, Union[Coord, Coords]],
         max_steps: int = 10,
         render_mode: str = "ansi",
         seed: int = 42,
     ):
         super().__init__()
         self.size = size
+        assert "pursuer" in start and "evader" in start
         self.start = start
-        self.goal = goal
         self.max_steps = max_steps
         self.render_mode = render_mode
         self.action_space = gym.spaces.Discrete(4)
@@ -63,4 +61,10 @@ class HamstrungSquadEnv(gym.Env):
         pass
 
     def render(self):
+        if self.render_mode == "ansi":
+            return self._render_ansi()
+        else:
+            raise NotImplementedError
+
+    def _render_ansi(self) -> str:
         pass
