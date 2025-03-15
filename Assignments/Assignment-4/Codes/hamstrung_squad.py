@@ -7,6 +7,7 @@ from enum import IntEnum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import gymnasium as gym
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
 
@@ -17,7 +18,7 @@ Coords = List[Coord]
 class HamstrungSquadEnv(gym.Env):
     """Hamstrung squad game environment"""
 
-    metadata = {"render.modes": ["ansi"]}
+    metadata = {"render.modes": ["ansi", "rgb_array"], "render.fps": 4}
 
     def __init__(
         self,
@@ -66,6 +67,8 @@ class HamstrungSquadEnv(gym.Env):
     def render(self):
         if self.render_mode == "ansi":
             return self._render_ansi()
+        elif self.render_mode == "rgb_array":
+            return self._render_rgb_array()
         else:
             raise NotImplementedError
 
@@ -88,3 +91,21 @@ class HamstrungSquadEnv(gym.Env):
         ansi = "\n".join(" ".join(f"{color_map[c]}{c}" for c in row) for row in grid)
         print(ansi, end="\033[0m\n" if use_color else "\n")
         return ansi
+
+    def _render_rgb_array(self) -> NDArray:
+        color_map = {
+            ".": np.array([255, 255, 255]),  # White
+            "P": np.array([0, 0, 255]),  # Blue
+            "E": np.array([255, 0, 0]),  # Red
+        }
+        grid = self._create_grid()
+        rgb_array = np.zeros((self.size[0], self.size[1], 3), dtype=np.uint8)
+        for i, row in enumerate(grid):
+            for j, cell in enumerate(row):
+                rgb_array[i, j] = color_map[cell]
+        plt.imshow(rgb_array)
+        plt.xticks([])
+        plt.yticks([])
+        plt.tight_layout()
+        plt.show()
+        return rgb_array
