@@ -7,6 +7,7 @@ from enum import IntEnum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import gymnasium as gym
+import numpy as np
 from numpy.typing import NDArray
 
 Coord = Tuple[int, int]
@@ -30,6 +31,8 @@ class HamstrungSquadEnv(gym.Env):
         self.size = size
         assert "pursuer" in start and "evader" in start
         self.start = start
+        self.pursuer = start["pursuer"]
+        self.evader = start["evader"]
         self.max_steps = max_steps
         self.render_mode = render_mode
         self.action_space = gym.spaces.Discrete(4)
@@ -66,5 +69,22 @@ class HamstrungSquadEnv(gym.Env):
         else:
             raise NotImplementedError
 
-    def _render_ansi(self) -> str:
-        pass
+    def _create_grid(self) -> NDArray:
+        grid = np.full(self.size, ".")
+        grid[self.pursuer] = "P"
+        grid[self.evader] = "E"
+        return grid
+
+    def _render_ansi(self, use_color: bool = True) -> str:
+        if use_color:
+            color_map = {
+                ".": "\033[0m",  # Default
+                "P": "\033[94m",  # Blue
+                "E": "\033[91m",  # Red
+            }
+        else:
+            color_map = {".": "", "P": "", "E": ""}
+        grid = self._create_grid()
+        ansi = "\n".join(" ".join(f"{color_map[c]}{c}" for c in row) for row in grid)
+        print(ansi, end="\033[0m\n" if use_color else "\n")
+        return ansi
