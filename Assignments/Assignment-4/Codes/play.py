@@ -3,6 +3,7 @@ play.py
 Play Hamstrung sqaud game
 """
 
+import math
 import os
 from ast import literal_eval
 from enum import IntEnum
@@ -25,17 +26,25 @@ class HamstrungSquadGame:
         PURSUER = 0
         EVADER = 1
 
+    class Direction(IntEnum):
+        UP = 0
+        RIGHT = 1
+        DOWN = 2
+        LEFT = 3
+
     def __init__(self, evader: Optional[Coord] = None):
         self.cell_size = 30
         self.max_grid_size = 20
         self.width = self.height = self.max_grid_size * self.cell_size
-        self.pursuer: Coord = [0, self.max_grid_size - 1]
-        self.pursuer_direction = [0, 2]
+        self.pursuer: Coord = [1, self.max_grid_size - 1]
+        self.pursuer_direction = self.Direction.UP
+        self.pursuer_velocity = 2
         self.evader: Coord = (
             [self.max_grid_size - 1, 0]
             if not evader
             else [evader[0], self.max_grid_size - evader[1] - 1]
         )
+        self.evader_velocity = 1
         self.game_over = False
         self.clock = pygame.time.Clock()
         self.turn = self.Turn.PURSUER
@@ -54,42 +63,80 @@ class HamstrungSquadGame:
 
         # Pursuer
         px, py = self.pursuer
-        pursuer_points = [
-            (px * self.cell_size + self.cell_size // 2, py * self.cell_size),
-            (px * self.cell_size, py * self.cell_size + self.cell_size),
-            (
-                px * self.cell_size + self.cell_size,
-                py * self.cell_size + self.cell_size,
-            ),
-        ]
+        angle = self.direction_to_angle(self.pursuer_direction)
+        pursuer_points = self.get_rotated_triangle_points(px, py, angle)
         pygame.draw.polygon(self.screen, (0, 255, 0), pursuer_points)
+        if self.turn == self.Turn.PURSUER:
+            pygame.draw.polygon(self.screen, (255, 255, 0), pursuer_points, width=2)
 
         # Evader
         ex, ey = self.evader
-        pygame.draw.rect(
+        radius = self.cell_size // 2
+        pygame.draw.circle(
             self.screen,
             (255, 0, 0),
-            (ex * self.cell_size, ey * self.cell_size, self.cell_size, self.cell_size),
+            (ex * self.cell_size + radius, ey * self.cell_size + radius),
+            radius,
         )
+        if self.turn == self.Turn.EVADER:
+            pygame.draw.circle(
+                self.screen,
+                (255, 255, 0),
+                (ex * self.cell_size + radius, ey * self.cell_size + radius),
+                radius,
+                width=2,
+            )
 
-        # Highlight
-        hx, hy = self.evader if self.turn == self.Turn.EVADER else self.pursuer
-        pygame.draw.rect(
-            self.screen,
-            (255, 255, 0),
-            (hx * self.cell_size, hy * self.cell_size, self.cell_size, self.cell_size),
-            width=5,
-        )
         pygame.display.flip()
+
+    def direction_to_angle(self, direction: Direction) -> float:
+        """Convert a direction to an angle in radians."""
+        return {
+            self.Direction.UP: 0,
+            self.Direction.RIGHT: math.pi / 2,
+            self.Direction.DOWN: math.pi,
+            self.Direction.LEFT: -math.pi / 2,
+        }[direction]
+
+    def get_rotated_triangle_points(self, x: int, y: int, angle: float):
+        """Returns the points of the triangle rotated based on the direction."""
+        base, height = self.cell_size, self.cell_size
+        points = [
+            (x * self.cell_size, y * self.cell_size - height // 2),
+            (x * self.cell_size - base // 2, y * self.cell_size + height // 2),
+            (x * self.cell_size + base // 2, y * self.cell_size + height // 2),
+        ]
+        rotated_points = []
+        for point in points:
+            rotated_point = self.rotate_point(
+                point[0],
+                point[1],
+                x * self.cell_size,
+                y * self.cell_size,
+                angle,
+            )
+            rotated_points.append(rotated_point)
+        return rotated_points
+
+    def rotate_point(
+        self, px: int, py: int, cx: int, cy: int, angle: float
+    ) -> Tuple[int, int]:
+        """Rotate a point around a center point by a given angle."""
+        s, c = math.sin(angle), math.cos(angle)
+        px -= cx
+        py -= cy
+        new_x = cx + (px * c - py * s)
+        new_y = cy + (px * s + py * c)
+        return int(new_x), int(new_y)
 
     def handle_input(self):
         """Handle player input for movement."""
         move_keys = {
             self.Turn.PURSUER: {
-                pygame.K_w: (0, -2),
-                pygame.K_s: (0, 2),
-                pygame.K_a: (-2, 0),
-                pygame.K_d: (2, 0),
+                pygame.K_w: self.Direction.UP,
+                pygame.K_s: self.Direction.DOWN,
+                pygame.K_a: self.Direction.LEFT,
+                pygame.K_d: self.Direction.RIGHT,
             },
             self.Turn.EVADER: {
                 pygame.K_UP: (0, -1),
@@ -104,26 +151,32 @@ class HamstrungSquadGame:
                 self.game_over = True
                 return
             if event.type == pygame.KEYDOWN and event.key in move_keys[self.turn]:
-                dx, dy = move_keys[self.turn][event.key]
+                if self.turn == self.Turn.PURSUER:
+                    new_direction = move_keys[self.turn][event.key]
+                    if new_direction != self.pursuer_direction:
+                        self.pursuer_direction = new_direction
+                    dx, dy = self.direction_to_delta(self.pursuer_direction)
+                    self.pursuer = [
+                        self.clamp(self.pursuer[0] + dx * self.pursuer_velocity),
+                        self.clamp(self.pursuer[1] + dy * self.pursuer_velocity),
+                    ]
+                    self.payoff += 1
+                else:
+                    dx, dy = move_keys[self.turn][event.key]
+                    self.evader = [
+                        self.clamp(self.evader[0] + dx * self.evader_velocity),
+                        self.clamp(self.evader[1] + dy * self.evader_velocity),
+                    ]
                 break
-        if self.turn == self.Turn.PURSUER:
-            if (dx, dy) in [
-                self.pursuer_direction,
-                (self.pursuer_direction[1], -self.pursuer_direction[0]),
-            ]:
-                self.pursuer = [
-                    self.clamp(self.pursuer[0] + dx),
-                    self.clamp(self.pursuer[1] + dy),
-                ]
-                self.pursuer_direction = (dx, dy)
-                self.payoff += 1
-            else:
-                self.turn = self.Turn.PURSUER
-        else:
-            self.evader = [
-                self.clamp(self.evader[0] + dx),
-                self.clamp(self.evader[1] + dy),
-            ]
+
+    def direction_to_delta(self, direction: Direction) -> Tuple[int, int]:
+        """Convert a direction to a delta (dx, dy)."""
+        return {
+            self.Direction.UP: (0, -1),
+            self.Direction.RIGHT: (1, 0),
+            self.Direction.DOWN: (0, 1),
+            self.Direction.LEFT: (-1, 0),
+        }[direction]
 
     def clamp(self, value: int) -> int:
         """Clamp a value between 0 and max_grid_size - 1."""
