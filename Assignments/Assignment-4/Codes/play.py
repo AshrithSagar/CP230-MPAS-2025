@@ -58,7 +58,7 @@ class HamstrungSquadGame:
         if evader is None:
             evader = Prompt(console=console).ask("[green]Evader's starting position[/]")
             evader = literal_eval(evader)
-            self.evader: Coord = [evader[0], self.max_grid_size - evader[1] - 1]
+            self.evader: Coord = [evader[0] + 1, self.max_grid_size - evader[1] - 1]
         self.evader_velocity = 1
         self.payoff = 0
         self.game_over = False
@@ -96,7 +96,7 @@ class HamstrungSquadGame:
 
         # Evader
         (ex, ey), r = self.evader, cs // 2
-        center: Coord = ex * cs + r, ey * cs + r
+        center: Coord = ex * cs, ey * cs
         pygame.draw.circle(self.screen, (255, 0, 0), center, r)
         if self.turn == self.Turn.EVADER:
             pygame.draw.circle(self.screen, (255, 255, 0), center, r, width=2)
