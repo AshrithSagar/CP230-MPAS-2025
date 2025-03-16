@@ -6,9 +6,10 @@ Play Hamstrung sqaud game
 import os
 from ast import literal_eval
 from enum import IntEnum
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+import numpy as np
 import pygame
 from rich.console import Console
 from rich.prompt import Prompt
@@ -115,6 +116,7 @@ class HamstrungSquadGame:
                 pygame.K_RIGHT: (1, 0),
             },
         }
+        clip: Callable[[int], int] = lambda x: np.clip(x, 0, self.max_grid_size - 1)
         while True:
             event = pygame.event.wait()
             if event.type == pygame.QUIT:
@@ -140,15 +142,15 @@ class HamstrungSquadGame:
                         else:
                             continue
                     self.pursuer = [
-                        self.clamp(self.pursuer[0] + dx * self.pursuer_velocity),
-                        self.clamp(self.pursuer[1] + dy * self.pursuer_velocity),
+                        clip(self.pursuer[0] + dx * self.pursuer_velocity),
+                        clip(self.pursuer[1] + dy * self.pursuer_velocity),
                     ]
                     self.payoff += 1
                 else:
                     dx, dy = move_keys[self.turn][event.key]
                     self.evader = [
-                        self.clamp(self.evader[0] + dx * self.evader_velocity),
-                        self.clamp(self.evader[1] + dy * self.evader_velocity),
+                        clip(self.evader[0] + dx * self.evader_velocity),
+                        clip(self.evader[1] + dy * self.evader_velocity),
                     ]
                 break
 
@@ -160,10 +162,6 @@ class HamstrungSquadGame:
             self.Direction.DOWN: (0, 1),
             self.Direction.LEFT: (-1, 0),
         }[direction]
-
-    def clamp(self, value: int) -> int:
-        """Clamp a value between 0 and max_grid_size - 1."""
-        return max(0, min(self.max_grid_size - 1, value))
 
     def is_game_over(self) -> bool:
         """Check if pursuer has caught the evader."""
