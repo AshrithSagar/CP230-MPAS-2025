@@ -25,6 +25,9 @@ class HamstrungSquadGame:
         PURSUER = 0
         EVADER = 1
 
+        def next(self):
+            return self.EVADER if self == self.PURSUER else self.PURSUER
+
     class Direction(IntEnum):
         UP = 0
         RIGHT = 1
@@ -116,6 +119,12 @@ class HamstrungSquadGame:
                 pygame.K_RIGHT: (1, 0),
             },
         }
+        direction_to_delta = {
+            self.Direction.UP: (0, -1),
+            self.Direction.RIGHT: (1, 0),
+            self.Direction.DOWN: (0, 1),
+            self.Direction.LEFT: (-1, 0),
+        }
         clip: Callable[[int], int] = lambda x: np.clip(x, 0, self.max_grid_size - 1)
         while True:
             event = pygame.event.wait()
@@ -127,17 +136,17 @@ class HamstrungSquadGame:
                     move_type = move_keys[self.turn][event.key]
                     if self.control_scheme == "reduced":
                         if move_type == self.Direction.UP:
-                            dx, dy = self.direction_to_delta(self.pursuer_direction)
+                            dx, dy = direction_to_delta[self.pursuer_direction]
                         elif move_type == self.Direction.RIGHT:
                             self.pursuer_direction = (self.pursuer_direction + 1) % 4
-                            dx, dy = self.direction_to_delta(self.pursuer_direction)
+                            dx, dy = direction_to_delta[self.pursuer_direction]
                         else:
                             continue
                     elif self.control_scheme == "full":
                         if move_type == self.pursuer_direction or (
                             move_type == (self.pursuer_direction + 1) % 4
                         ):
-                            dx, dy = self.direction_to_delta(move_type)
+                            dx, dy = direction_to_delta[self.pursuer_direction]
                             self.pursuer_direction = move_type
                         else:
                             continue
@@ -153,15 +162,6 @@ class HamstrungSquadGame:
                         clip(self.evader[1] + dy * self.evader_velocity),
                     ]
                 break
-
-    def direction_to_delta(self, direction: Direction) -> Tuple[int, int]:
-        """Convert a direction to a delta (dx, dy)."""
-        return {
-            self.Direction.UP: (0, -1),
-            self.Direction.RIGHT: (1, 0),
-            self.Direction.DOWN: (0, 1),
-            self.Direction.LEFT: (-1, 0),
-        }[direction]
 
     def is_game_over(self) -> bool:
         """Check if pursuer has caught the evader."""
@@ -182,11 +182,7 @@ class HamstrungSquadGame:
             if self.is_game_over():
                 console.print(f"[purple]Game over![/] Payoff: {self.payoff}")
                 break
-            self.turn = (
-                self.Turn.EVADER
-                if self.turn == self.Turn.PURSUER
-                else self.Turn.PURSUER
-            )
+            self.turn = self.turn.next()
         pygame.quit()
 
 
