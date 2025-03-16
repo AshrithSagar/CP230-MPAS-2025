@@ -141,23 +141,20 @@ class HamstrungSquadGame:
             if event.type == pygame.KEYDOWN and event.key in keys[self.turn]:
                 if self.turn == self.Turn.PURSUER:
                     move_type = self.Direction(keys[self.turn][event.key])
+                    direction = self.pursuer_direction
                     if self.control_scheme == "reduced":
                         if move_type == self.Direction.UP:
-                            delta = self.pursuer_direction.to_delta()
+                            pass
                         elif move_type == self.Direction.RIGHT:
-                            self.pursuer_direction = self.pursuer_direction.next()
-                            delta = self.pursuer_direction.to_delta()
+                            self.pursuer_direction = direction.next()
                         else:
                             continue
                     elif self.control_scheme == "full":
-                        if (
-                            move_type == self.pursuer_direction
-                            or move_type == self.pursuer_direction.next()
-                        ):
+                        if move_type in [direction, direction.next()]:
                             self.pursuer_direction = move_type
-                            delta = self.pursuer_direction.to_delta()
                         else:
                             continue
+                    delta = self.pursuer_direction.to_delta()
                     self.pursuer = move(self.pursuer, delta, self.pursuer_velocity)
                     self.payoff += 1
                 elif self.turn == self.Turn.EVADER:
