@@ -4,12 +4,16 @@ Play Hamstrung sqaud game
 """
 
 from enum import Enum
+from os import environ
 from typing import Optional, Tuple
 
+environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame
+from rich.console import Console
 from rich.prompt import Prompt
 
 Coord = Tuple[int, int]
+console = Console()
 
 
 class HamstrungSquadGame:
@@ -28,13 +32,14 @@ class HamstrungSquadGame:
         )
         self.pursuer: Coord = [0, self.max_grid_size - 1]
         if not evader:
-            evader = (Coord)(self.max_grid_size - 1, 0)
+            evader = [self.max_grid_size - 1, 0]
         else:
-            evader = (evader[0], self.max_grid_size - evader[1] - 1)
+            evader = [evader[0], self.max_grid_size - evader[1] - 1]
         self.evader = evader
         self.game_over = False
         self.clock = pygame.time.Clock()
         self.turn = self.Turn.PURSUER
+        self.payoff = 0
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Hamstrung squad game")
@@ -86,14 +91,24 @@ class HamstrungSquadGame:
                 (pygame.K_RIGHT, 1, 0),
             ],
         }
-        for key, x, y in move_keys[self.turn]:
-            if keys[key]:
-                dx, dy = x, y
+        wait_keypress = True
+        while wait_keypress:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.game_over = True
+                    return
+                if event.type == pygame.KEYDOWN:
+                    for key, x, y in move_keys[self.turn]:
+                        if event.key == key:
+                            dx, dy = x, y
+                            wait_keypress = False
+                            break
         if self.turn == self.Turn.PURSUER:
             self.pursuer: Coord = [
-                max(0, min(self.max_grid_size - 1, self.pursuer[0] + dx)),
-                max(0, min(self.max_grid_size - 1, self.pursuer[1] + dy)),
+                max(0, min(self.max_grid_size - 1, self.pursuer[0] + 2 * dx)),
+                max(0, min(self.max_grid_size - 1, self.pursuer[1] + 2 * dy)),
             ]
+            self.payoff += 1
         elif self.turn == self.Turn.EVADER:
             self.evader: Coord = [
                 max(0, min(self.max_grid_size - 1, self.evader[0] + dx)),
@@ -115,10 +130,10 @@ class HamstrungSquadGame:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.game_over = True
-            self.handle_input()
             self.draw_grid()
+            self.handle_input()
             if self.is_game_over():
-                print("Game Over! Evader in capture region of pursuer.")
+                console.print(f"[purple]Game over![/] Payoff: {self.payoff}")
                 self.game_over = True
             self.turn = (
                 self.Turn.EVADER
