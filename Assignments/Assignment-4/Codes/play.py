@@ -25,14 +25,25 @@ class HamstrungSquadGame:
         PURSUER = 0
         EVADER = 1
 
-        def next(self):
-            return self.EVADER if self == self.PURSUER else self.PURSUER
+        def __next__(self):
+            return self.__class__((self + 1) % 2)
 
     class Direction(IntEnum):
         UP = 0
         RIGHT = 1
         DOWN = 2
         LEFT = 3
+
+        def next(self):
+            return self.__class__((self + 1) % 4)
+
+        def to_delta(self) -> Coord:
+            return {
+                self.UP: (0, -1),
+                self.RIGHT: (1, 0),
+                self.DOWN: (0, 1),
+                self.LEFT: (-1, 0),
+            }[self]
 
     def __init__(
         self,
@@ -54,14 +65,14 @@ class HamstrungSquadGame:
         self.control_scheme = control_scheme
         self.pursuer: Coord = [1, self.max_grid_size - 1]
         self.pursuer_direction = self.Direction.UP
-        self.pursuer_velocity = 2
+        self.pursuer_velocity: int = 2
         if evader is None:
             evader = Prompt(console=console).ask("[green]Evader's starting position[/]")
             evader = literal_eval(evader)
             self.evader: Coord = [evader[0] + 1, self.max_grid_size - evader[1] - 1]
-        self.evader_velocity = 1
-        self.payoff = 0
-        self.game_over = False
+        self.evader_velocity: int = 1
+        self.payoff: int = 0
+        self.game_over: bool = False
         self.turn = self.Turn.PURSUER
         self.clock = pygame.time.Clock()
         pygame.init()
@@ -105,7 +116,7 @@ class HamstrungSquadGame:
 
     def handle_input(self):
         """Handle player input for movement."""
-        move_keys = {
+        keys = {
             self.Turn.PURSUER: {
                 pygame.K_w: self.Direction.UP,
                 pygame.K_a: self.Direction.LEFT,
@@ -119,48 +130,39 @@ class HamstrungSquadGame:
                 pygame.K_RIGHT: (1, 0),
             },
         }
-        direction_to_delta = {
-            self.Direction.UP: (0, -1),
-            self.Direction.RIGHT: (1, 0),
-            self.Direction.DOWN: (0, 1),
-            self.Direction.LEFT: (-1, 0),
-        }
         clip: Callable[[int], int] = lambda x: np.clip(x, 0, self.max_grid_size - 1)
+        move: Callable[[Coord, Coord, int], Coord]
+        move = lambda p, d, v: [clip(p[0] + d[0] * v), clip(p[1] + d[1] * v)]
         while True:
             event = pygame.event.wait()
             if event.type == pygame.QUIT:
                 self.game_over = True
                 return
-            if event.type == pygame.KEYDOWN and event.key in move_keys[self.turn]:
+            if event.type == pygame.KEYDOWN and event.key in keys[self.turn]:
                 if self.turn == self.Turn.PURSUER:
-                    move_type = move_keys[self.turn][event.key]
+                    move_type = self.Direction(keys[self.turn][event.key])
                     if self.control_scheme == "reduced":
                         if move_type == self.Direction.UP:
-                            dx, dy = direction_to_delta[self.pursuer_direction]
+                            delta = self.pursuer_direction.to_delta()
                         elif move_type == self.Direction.RIGHT:
-                            self.pursuer_direction = (self.pursuer_direction + 1) % 4
-                            dx, dy = direction_to_delta[self.pursuer_direction]
+                            self.pursuer_direction = self.pursuer_direction.next()
+                            delta = self.pursuer_direction.to_delta()
                         else:
                             continue
                     elif self.control_scheme == "full":
-                        if move_type == self.pursuer_direction or (
-                            move_type == (self.pursuer_direction + 1) % 4
+                        if (
+                            move_type == self.pursuer_direction
+                            or move_type == self.pursuer_direction.next()
                         ):
-                            dx, dy = direction_to_delta[self.pursuer_direction]
                             self.pursuer_direction = move_type
+                            delta = self.pursuer_direction.to_delta()
                         else:
                             continue
-                    self.pursuer = [
-                        clip(self.pursuer[0] + dx * self.pursuer_velocity),
-                        clip(self.pursuer[1] + dy * self.pursuer_velocity),
-                    ]
+                    self.pursuer = move(self.pursuer, delta, self.pursuer_velocity)
                     self.payoff += 1
-                else:
-                    dx, dy = move_keys[self.turn][event.key]
-                    self.evader = [
-                        clip(self.evader[0] + dx * self.evader_velocity),
-                        clip(self.evader[1] + dy * self.evader_velocity),
-                    ]
+                elif self.turn == self.Turn.EVADER:
+                    delta = keys[self.turn][event.key]
+                    self.evader = move(self.evader, delta, self.evader_velocity)
                 break
 
     def is_game_over(self) -> bool:
@@ -182,7 +184,7 @@ class HamstrungSquadGame:
             if self.is_game_over():
                 console.print(f"[purple]Game over![/] Payoff: {self.payoff}")
                 break
-            self.turn = self.turn.next()
+            self.turn = next(self.turn)
         pygame.quit()
 
 
