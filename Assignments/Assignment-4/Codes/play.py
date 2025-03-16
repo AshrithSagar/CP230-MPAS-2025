@@ -3,17 +3,18 @@ play.py
 Play Hamstrung sqaud game
 """
 
+import os
 from enum import Enum
-from os import environ
 from typing import Optional, Tuple
 
-environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame
 from rich.console import Console
 from rich.prompt import Prompt
 
 Coord = Tuple[int, int]
 console = Console()
+prompt = Prompt(console=console)
 
 
 class HamstrungSquadGame:
@@ -150,6 +151,6 @@ class HamstrungSquadGame:
 
 
 if __name__ == "__main__":
-    evader: Coord = eval(Prompt.ask("[green]Evader's starting position[/]"))
+    evader: Coord = eval(prompt.ask("[green]Evader's starting position[/]"))
     game = HamstrungSquadGame(evader=evader)
     game.play()
