@@ -31,6 +31,7 @@ class HamstrungSquadGame:
             self.max_grid_size * self.cell_size,
         )
         self.pursuer: Coord = [0, self.max_grid_size - 1]
+        self.pursuer_direction = [0, 1]
         if not evader:
             evader = [self.max_grid_size - 1, 0]
         else:
@@ -79,10 +80,10 @@ class HamstrungSquadGame:
         dx, dy = 0, 0
         move_keys = {
             self.Turn.PURSUER: [
-                (pygame.K_w, 0, -1),
-                (pygame.K_s, 0, 1),
-                (pygame.K_a, -1, 0),
-                (pygame.K_d, 1, 0),
+                (pygame.K_w, 0, -2),
+                (pygame.K_s, 0, 2),
+                (pygame.K_a, -2, 0),
+                (pygame.K_d, 2, 0),
             ],
             self.Turn.EVADER: [
                 (pygame.K_UP, 0, -1),
@@ -104,11 +105,16 @@ class HamstrungSquadGame:
                             wait_keypress = False
                             break
         if self.turn == self.Turn.PURSUER:
-            self.pursuer: Coord = [
-                max(0, min(self.max_grid_size - 1, self.pursuer[0] + 2 * dx)),
-                max(0, min(self.max_grid_size - 1, self.pursuer[1] + 2 * dy)),
-            ]
-            self.payoff += 1
+            direction = (dx, dy)
+            forward = self.pursuer_direction
+            right = (self.pursuer_direction[1], -self.pursuer_direction[0])
+            if direction == forward or direction == right:
+                self.pursuer: Coord = [
+                    max(0, min(self.max_grid_size - 1, self.pursuer[0] + dx)),
+                    max(0, min(self.max_grid_size - 1, self.pursuer[1] + dy)),
+                ]
+                self.pursuer_direction = direction
+                self.payoff += 1
         elif self.turn == self.Turn.EVADER:
             self.evader: Coord = [
                 max(0, min(self.max_grid_size - 1, self.evader[0] + dx)),
