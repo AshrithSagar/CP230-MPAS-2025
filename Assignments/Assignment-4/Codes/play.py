@@ -133,10 +133,8 @@ class HamstrungSquadGame:
         """Handle player input for movement."""
         move_keys = {
             self.Turn.PURSUER: {
-                pygame.K_w: self.Direction.UP,
-                pygame.K_s: self.Direction.DOWN,
-                pygame.K_a: self.Direction.LEFT,
-                pygame.K_d: self.Direction.RIGHT,
+                pygame.K_w: "forward",
+                pygame.K_d: "right",
             },
             self.Turn.EVADER: {
                 pygame.K_UP: (0, -1),
@@ -152,10 +150,13 @@ class HamstrungSquadGame:
                 return
             if event.type == pygame.KEYDOWN and event.key in move_keys[self.turn]:
                 if self.turn == self.Turn.PURSUER:
-                    new_direction = move_keys[self.turn][event.key]
-                    if new_direction != self.pursuer_direction:
-                        self.pursuer_direction = new_direction
-                    dx, dy = self.direction_to_delta(self.pursuer_direction)
+                    move_type = move_keys[self.turn][event.key]
+                    if move_type == "forward":
+                        dx, dy = self.direction_to_delta(self.pursuer_direction)
+                    elif move_type == "right":
+                        right_direction = (self.pursuer_direction + 1) % 4
+                        dx, dy = self.direction_to_delta(right_direction)
+                        self.pursuer_direction = right_direction
                     self.pursuer = [
                         self.clamp(self.pursuer[0] + dx * self.pursuer_velocity),
                         self.clamp(self.pursuer[1] + dy * self.pursuer_velocity),
