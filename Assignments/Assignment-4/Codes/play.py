@@ -4,7 +4,6 @@ Play Hamstrung sqaud game
 """
 
 import os
-from ast import literal_eval
 from enum import IntEnum
 from typing import Callable, List, Optional, Tuple
 
@@ -55,21 +54,16 @@ class HamstrungSquadGame:
         self.cell_size = cell_size
         self.max_grid_size = max_grid_size
         self.width = self.height = self.max_grid_size * self.cell_size
-        if control_scheme is None:
-            control_scheme = Prompt(console=console).ask(
-                "[green]Control scheme[/]",
-                choices=["reduced", "full"],
-                default="reduced",
-            )
-        assert control_scheme in ["reduced", "full"]
-        self.control_scheme = control_scheme
+        self.control_scheme = control_scheme or Prompt(console=console).ask(
+            "[green]Control scheme[/]", choices=["reduced", "full"], default="reduced"
+        )
         self.pursuer: Coord = [1, self.max_grid_size - 1]
         self.pursuer_direction = self.Direction.UP
         self.pursuer_velocity: int = 2
-        if evader is None:
-            evader = Prompt(console=console).ask("[green]Evader's starting position[/]")
-            evader = literal_eval(evader)
-            self.evader: Coord = [evader[0] + 1, self.max_grid_size - evader[1] - 1]
+        self.evader: Coord = evader or eval(
+            Prompt(console=console).ask("[green]Evader's starting position[/]")
+        )
+        self.evader = [self.evader[0] + 1, self.max_grid_size - self.evader[1] - 1]
         self.evader_velocity: int = 1
         self.payoff: int = 0
         self.game_over: bool = False
@@ -82,36 +76,26 @@ class HamstrungSquadGame:
     def handle_update(self):
         """Draw the grid and characters on the screen."""
         cs = self.cell_size
-
-        # Grid
         self.screen.fill((0, 0, 0))
-        for i in range(0, self.width, self.cell_size):
+        for i in range(0, self.width, cs):
             pygame.draw.line(self.screen, (255, 255, 255), (i, 0), (i, self.height))
             pygame.draw.line(self.screen, (255, 255, 255), (0, i), (self.width, i))
-
-        # Pursuer
         (px, py), b, h = self.pursuer, cs, cs
-        triangle: List[Coord]
-        if self.pursuer_direction == self.Direction.UP:
-            triangle = [(0, -h // 2), (-b // 2, h // 2), (b // 2, h // 2)]
-        elif self.pursuer_direction == self.Direction.RIGHT:
-            triangle = [(h // 2, 0), (-h // 2, -b // 2), (-h // 2, b // 2)]
-        elif self.pursuer_direction == self.Direction.DOWN:
-            triangle = [(0, h // 2), (-b // 2, -h // 2), (b // 2, -h // 2)]
-        elif self.pursuer_direction == self.Direction.LEFT:
-            triangle = [(-h // 2, 0), (h // 2, -b // 2), (h // 2, b // 2)]
-        pursuer: List[Coord] = [(px * cs + x, py * cs + y) for x, y in triangle]
+        triangle: List[Coord] = {
+            self.Direction.UP: [(0, -h // 2), (-b // 2, h // 2), (b // 2, h // 2)],
+            self.Direction.RIGHT: [(h // 2, 0), (-h // 2, -b // 2), (-h // 2, b // 2)],
+            self.Direction.DOWN: [(0, h // 2), (-b // 2, -h // 2), (b // 2, -h // 2)],
+            self.Direction.LEFT: [(-h // 2, 0), (h // 2, -b // 2), (h // 2, b // 2)],
+        }[self.pursuer_direction]
+        pursuer = [(px * cs + x, py * cs + y) for x, y in triangle]
         pygame.draw.polygon(self.screen, (0, 255, 0), pursuer)
+        (ex, ey), r = self.evader, cs // 2
+        center = ex * cs, ey * cs
+        pygame.draw.circle(self.screen, (255, 0, 0), center, r)
         if self.turn == self.Turn.PURSUER:
             pygame.draw.polygon(self.screen, (255, 255, 0), pursuer, width=2)
-
-        # Evader
-        (ex, ey), r = self.evader, cs // 2
-        center: Coord = ex * cs, ey * cs
-        pygame.draw.circle(self.screen, (255, 0, 0), center, r)
-        if self.turn == self.Turn.EVADER:
+        elif self.turn == self.Turn.EVADER:
             pygame.draw.circle(self.screen, (255, 255, 0), center, r, width=2)
-
         pygame.display.flip()
 
     def handle_input(self):
