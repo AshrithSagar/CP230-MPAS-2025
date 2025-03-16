@@ -3,11 +3,10 @@ play.py
 Play Hamstrung sqaud game
 """
 
-import math
 import os
 from ast import literal_eval
 from enum import IntEnum
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame
@@ -16,7 +15,6 @@ from rich.prompt import Prompt
 
 Coord = Tuple[int, int]
 console = Console()
-prompt = Prompt(console=console)
 
 
 class HamstrungSquadGame:
@@ -32,31 +30,44 @@ class HamstrungSquadGame:
         DOWN = 2
         LEFT = 3
 
-    def __init__(self, evader: Optional[Coord] = None, control_scheme: str = "reduced"):
-        self.cell_size = 30
-        self.max_grid_size = 20
+    def __init__(
+        self,
+        evader: Optional[Coord] = None,
+        control_scheme: Optional[str] = None,
+        cell_size: int = 30,
+        max_grid_size: int = 20,
+    ):
+        self.cell_size = cell_size
+        self.max_grid_size = max_grid_size
         self.width = self.height = self.max_grid_size * self.cell_size
+        if control_scheme is None:
+            control_scheme = Prompt(console=console).ask(
+                "[green]Control scheme[/]",
+                choices=["reduced", "full"],
+                default="reduced",
+            )
         assert control_scheme in ["reduced", "full"]
         self.control_scheme = control_scheme
         self.pursuer: Coord = [1, self.max_grid_size - 1]
         self.pursuer_direction = self.Direction.UP
         self.pursuer_velocity = 2
-        self.evader: Coord = (
-            [self.max_grid_size - 1, 0]
-            if not evader
-            else [evader[0], self.max_grid_size - evader[1] - 1]
-        )
+        if evader is None:
+            evader = Prompt(console=console).ask("[green]Evader's starting position[/]")
+            evader = literal_eval(evader)
+            self.evader: Coord = [evader[0], self.max_grid_size - evader[1] - 1]
         self.evader_velocity = 1
-        self.game_over = False
-        self.clock = pygame.time.Clock()
-        self.turn = self.Turn.PURSUER
         self.payoff = 0
+        self.game_over = False
+        self.turn = self.Turn.PURSUER
+        self.clock = pygame.time.Clock()
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Hamstrung squad game")
 
-    def draw_grid(self):
+    def handle_update(self):
         """Draw the grid and characters on the screen."""
+        cs = self.cell_size
+
         # Grid
         self.screen.fill((0, 0, 0))
         for i in range(0, self.width, self.cell_size):
@@ -64,72 +75,29 @@ class HamstrungSquadGame:
             pygame.draw.line(self.screen, (255, 255, 255), (0, i), (self.width, i))
 
         # Pursuer
-        px, py = self.pursuer
-        angle = self.direction_to_angle(self.pursuer_direction)
-        pursuer_points = self.get_rotated_triangle_points(px, py, angle)
-        pygame.draw.polygon(self.screen, (0, 255, 0), pursuer_points)
+        (px, py), b, h = self.pursuer, cs, cs
+        triangle: List[Coord]
+        if self.pursuer_direction == self.Direction.UP:
+            triangle = [(0, -h // 2), (-b // 2, h // 2), (b // 2, h // 2)]
+        elif self.pursuer_direction == self.Direction.RIGHT:
+            triangle = [(h // 2, 0), (-h // 2, -b // 2), (-h // 2, b // 2)]
+        elif self.pursuer_direction == self.Direction.DOWN:
+            triangle = [(0, h // 2), (-b // 2, -h // 2), (b // 2, -h // 2)]
+        elif self.pursuer_direction == self.Direction.LEFT:
+            triangle = [(-h // 2, 0), (h // 2, -b // 2), (h // 2, b // 2)]
+        pursuer: List[Coord] = [(px * cs + x, py * cs + y) for x, y in triangle]
+        pygame.draw.polygon(self.screen, (0, 255, 0), pursuer)
         if self.turn == self.Turn.PURSUER:
-            pygame.draw.polygon(self.screen, (255, 255, 0), pursuer_points, width=2)
+            pygame.draw.polygon(self.screen, (255, 255, 0), pursuer, width=2)
 
         # Evader
-        ex, ey = self.evader
-        radius = self.cell_size // 2
-        pygame.draw.circle(
-            self.screen,
-            (255, 0, 0),
-            (ex * self.cell_size + radius, ey * self.cell_size + radius),
-            radius,
-        )
+        (ex, ey), r = self.evader, cs // 2
+        center: Coord = ex * cs + r, ey * cs + r
+        pygame.draw.circle(self.screen, (255, 0, 0), center, r)
         if self.turn == self.Turn.EVADER:
-            pygame.draw.circle(
-                self.screen,
-                (255, 255, 0),
-                (ex * self.cell_size + radius, ey * self.cell_size + radius),
-                radius,
-                width=2,
-            )
+            pygame.draw.circle(self.screen, (255, 255, 0), center, r, width=2)
 
         pygame.display.flip()
-
-    def direction_to_angle(self, direction: Direction) -> float:
-        """Convert a direction to an angle in radians."""
-        return {
-            self.Direction.UP: 0,
-            self.Direction.RIGHT: math.pi / 2,
-            self.Direction.DOWN: math.pi,
-            self.Direction.LEFT: -math.pi / 2,
-        }[direction]
-
-    def get_rotated_triangle_points(self, x: int, y: int, angle: float):
-        """Returns the points of the triangle rotated based on the direction."""
-        base, height = self.cell_size, self.cell_size
-        points = [
-            (x * self.cell_size, y * self.cell_size - height // 2),
-            (x * self.cell_size - base // 2, y * self.cell_size + height // 2),
-            (x * self.cell_size + base // 2, y * self.cell_size + height // 2),
-        ]
-        rotated_points = []
-        for point in points:
-            rotated_point = self.rotate_point(
-                point[0],
-                point[1],
-                x * self.cell_size,
-                y * self.cell_size,
-                angle,
-            )
-            rotated_points.append(rotated_point)
-        return rotated_points
-
-    def rotate_point(
-        self, px: int, py: int, cx: int, cy: int, angle: float
-    ) -> Tuple[int, int]:
-        """Rotate a point around a center point by a given angle."""
-        s, c = math.sin(angle), math.cos(angle)
-        px -= cx
-        py -= cy
-        new_x = cx + (px * c - py * s)
-        new_y = cy + (px * s + py * c)
-        return int(new_x), int(new_y)
 
     def handle_input(self):
         """Handle player input for movement."""
@@ -211,7 +179,7 @@ class HamstrungSquadGame:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.game_over = True
-            self.draw_grid()
+            self.handle_update()
             self.handle_input()
             if self.is_game_over():
                 console.print(f"[purple]Game over![/] Payoff: {self.payoff}")
@@ -225,6 +193,4 @@ class HamstrungSquadGame:
 
 
 if __name__ == "__main__":
-    evader: Coord = literal_eval(prompt.ask("[green]Evader's starting position[/]"))
-    game = HamstrungSquadGame(evader=evader, control_scheme="reduced")
-    game.play()
+    HamstrungSquadGame().play()
