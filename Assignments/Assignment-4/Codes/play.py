@@ -53,53 +53,32 @@ class HamstrungSquadGame:
             pygame.draw.line(self.screen, (255, 255, 255), (0, i), (self.width, i))
 
         # Pursuer
-        pursuer_x, pursuer_y = self.pursuer
+        px, py = self.pursuer
         pursuer_points = [
+            (px * self.cell_size + self.cell_size // 2, py * self.cell_size),
+            (px * self.cell_size, py * self.cell_size + self.cell_size),
             (
-                pursuer_x * self.cell_size + self.cell_size // 2,
-                pursuer_y * self.cell_size,
-            ),
-            (
-                pursuer_x * self.cell_size,
-                pursuer_y * self.cell_size + self.cell_size,
-            ),
-            (
-                pursuer_x * self.cell_size + self.cell_size,
-                pursuer_y * self.cell_size + self.cell_size,
+                px * self.cell_size + self.cell_size,
+                py * self.cell_size + self.cell_size,
             ),
         ]
         pygame.draw.polygon(self.screen, (0, 255, 0), pursuer_points)
 
         # Evader
-        evader_x, evader_y = self.evader
+        ex, ey = self.evader
         pygame.draw.rect(
             self.screen,
             (255, 0, 0),
-            (
-                evader_x * self.cell_size,
-                evader_y * self.cell_size,
-                self.cell_size,
-                self.cell_size,
-            ),
+            (ex * self.cell_size, ey * self.cell_size, self.cell_size, self.cell_size),
         )
 
         # Highlight
-        highlight_color = (255, 255, 0)
-        highlight_thickness = 5
-        if self.turn == self.Turn.PURSUER:
-            highlight_x, highlight_y = pursuer_x, pursuer_y
-        else:
-            highlight_x, highlight_y = evader_x, evader_y
+        hx, hy = self.evader if self.turn == self.Turn.EVADER else self.pursuer
         pygame.draw.rect(
             self.screen,
-            highlight_color,
-            (
-                highlight_x * self.cell_size,
-                highlight_y * self.cell_size,
-                self.cell_size,
-                self.cell_size,
-            ),
-            highlight_thickness,
+            (255, 255, 0),
+            (hx * self.cell_size, hy * self.cell_size, self.cell_size, self.cell_size),
+            width=5,
         )
         pygame.display.flip()
 
