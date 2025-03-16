@@ -32,10 +32,12 @@ class HamstrungSquadGame:
         DOWN = 2
         LEFT = 3
 
-    def __init__(self, evader: Optional[Coord] = None):
+    def __init__(self, evader: Optional[Coord] = None, control_scheme: str = "reduced"):
         self.cell_size = 30
         self.max_grid_size = 20
         self.width = self.height = self.max_grid_size * self.cell_size
+        assert control_scheme in ["reduced", "full"]
+        self.control_scheme = control_scheme
         self.pursuer: Coord = [1, self.max_grid_size - 1]
         self.pursuer_direction = self.Direction.UP
         self.pursuer_velocity = 2
@@ -133,13 +135,15 @@ class HamstrungSquadGame:
         """Handle player input for movement."""
         move_keys = {
             self.Turn.PURSUER: {
-                pygame.K_w: "forward",
-                pygame.K_d: "right",
+                pygame.K_w: self.Direction.UP,
+                pygame.K_a: self.Direction.LEFT,
+                pygame.K_s: self.Direction.DOWN,
+                pygame.K_d: self.Direction.RIGHT,
             },
             self.Turn.EVADER: {
                 pygame.K_UP: (0, -1),
-                pygame.K_DOWN: (0, 1),
                 pygame.K_LEFT: (-1, 0),
+                pygame.K_DOWN: (0, 1),
                 pygame.K_RIGHT: (1, 0),
             },
         }
@@ -151,12 +155,22 @@ class HamstrungSquadGame:
             if event.type == pygame.KEYDOWN and event.key in move_keys[self.turn]:
                 if self.turn == self.Turn.PURSUER:
                     move_type = move_keys[self.turn][event.key]
-                    if move_type == "forward":
-                        dx, dy = self.direction_to_delta(self.pursuer_direction)
-                    elif move_type == "right":
-                        right_direction = (self.pursuer_direction + 1) % 4
-                        dx, dy = self.direction_to_delta(right_direction)
-                        self.pursuer_direction = right_direction
+                    if self.control_scheme == "reduced":
+                        if move_type == self.Direction.UP:
+                            dx, dy = self.direction_to_delta(self.pursuer_direction)
+                        elif move_type == self.Direction.RIGHT:
+                            self.pursuer_direction = (self.pursuer_direction + 1) % 4
+                            dx, dy = self.direction_to_delta(self.pursuer_direction)
+                        else:
+                            continue
+                    elif self.control_scheme == "full":
+                        if move_type == self.pursuer_direction or (
+                            move_type == (self.pursuer_direction + 1) % 4
+                        ):
+                            dx, dy = self.direction_to_delta(move_type)
+                            self.pursuer_direction = move_type
+                        else:
+                            continue
                     self.pursuer = [
                         self.clamp(self.pursuer[0] + dx * self.pursuer_velocity),
                         self.clamp(self.pursuer[1] + dy * self.pursuer_velocity),
@@ -212,5 +226,5 @@ class HamstrungSquadGame:
 
 if __name__ == "__main__":
     evader: Coord = literal_eval(prompt.ask("[green]Evader's starting position[/]"))
-    game = HamstrungSquadGame(evader=evader)
+    game = HamstrungSquadGame(evader=evader, control_scheme="reduced")
     game.play()
