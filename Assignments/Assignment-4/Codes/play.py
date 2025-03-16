@@ -3,6 +3,7 @@ play.py
 Play Hamstrung sqaud game
 """
 
+import math
 import os
 from enum import IntEnum
 from typing import Callable, List, Optional, Tuple
@@ -68,18 +69,22 @@ class HamstrungSquadGame:
         self.payoff: int = 0
         self.game_over: bool = False
         self.turn = self.Turn.PURSUER
-        self.clock = pygame.time.Clock()
+
+    def handle_window(self):
+        """Create a window and pre-render the grid."""
         pygame.init()
-        self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Hamstrung squad game")
+        self.screen = pygame.display.set_mode((self.width, self.height))
+        self.grid = pygame.Surface((self.width, self.height))
+        self.grid.fill((0, 0, 0))
+        for i in range(0, self.width, self.cell_size):
+            pygame.draw.line(self.grid, (255, 255, 255), (i, 0), (i, self.height))
+            pygame.draw.line(self.grid, (255, 255, 255), (0, i), (self.width, i))
 
     def handle_update(self):
-        """Draw the grid and characters on the screen."""
+        """Draw the characters on the screen."""
+        self.screen.blit(self.grid, (0, 0))
         cs = self.cell_size
-        self.screen.fill((0, 0, 0))
-        for i in range(0, self.width, cs):
-            pygame.draw.line(self.screen, (255, 255, 255), (i, 0), (i, self.height))
-            pygame.draw.line(self.screen, (255, 255, 255), (0, i), (self.width, i))
         (px, py), b, h = self.pursuer, cs, cs
         triangle: List[Coord] = {
             self.Direction.UP: [(0, -h // 2), (-b // 2, h // 2), (b // 2, h // 2)],
@@ -146,15 +151,10 @@ class HamstrungSquadGame:
                     self.evader = move(self.evader, delta, self.evader_velocity)
                 break
 
-    def is_game_over(self) -> bool:
-        """Check if pursuer has caught the evader."""
-        return (
-            abs(self.pursuer[0] - self.evader[0]) <= 1
-            and abs(self.pursuer[1] - self.evader[1]) <= 1
-        )
-
     def play(self):
         """Run the game loop."""
+        self.clock = pygame.time.Clock()
+        self.handle_window()
         while not self.game_over:
             self.clock.tick(10)
             for event in pygame.event.get():
@@ -162,7 +162,7 @@ class HamstrungSquadGame:
                     self.game_over = True
             self.handle_update()
             self.handle_input()
-            if self.is_game_over():
+            if math.dist(self.pursuer, self.evader) <= 1.5:
                 console.print(f"[purple]Game over![/] Payoff: {self.payoff}")
                 break
             self.turn = next(self.turn)
