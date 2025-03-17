@@ -34,7 +34,7 @@ def main():
         )
     else:
         agent = BruteForceAgent(env)
-        agent.train(render=True, timed=True)
+        agent.train(render=True, timed=True, verbose=True)
 
 
 if __name__ == "__main__":

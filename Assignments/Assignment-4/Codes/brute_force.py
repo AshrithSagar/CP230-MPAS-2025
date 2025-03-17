@@ -4,11 +4,10 @@ Brute-force agent for the Hamstrung squad game
 """
 
 import timeit
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import numpy as np
-from hamstrung_squad import ActType, Coord, HamstrungSquadEnv, ObsType
-from numpy.typing import NDArray
+from hamstrung_squad import ActType, Coord, HamstrungSquadEnv
 from tqdm import tqdm
 
 
@@ -25,7 +24,7 @@ class BruteForceAgent:
         self.env.__dict__ = original_state
         return reward
 
-    def _select_best_action(self, obs: ObsType) -> ActType:
+    def _select_best_action(self) -> ActType:
         """Select the best action by evaluating all possible actions"""
         best_action = None
         best_reward = -np.inf
@@ -44,7 +43,7 @@ class BruteForceAgent:
             self.env.render()
         terminated, truncated = False, False
         while not (terminated or truncated):
-            action: ActType = self._select_best_action(obs)
+            action: ActType = self._select_best_action()
             next_obs, reward, terminated, truncated, _ = self.env.step(action)
             if render_mode:
                 if render_mode == "ansi":
