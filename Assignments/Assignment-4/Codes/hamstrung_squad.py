@@ -3,23 +3,21 @@ hamstrung_squad.py
 Hamstrung squad game environment
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import gymnasium as gym
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
 
 Coord = Tuple[int, int]
-Coords = List[Coord]
-ObsType = Tuple[int, int, int, int, int]
 ActType = Tuple[int, int]
+ObsType = Tuple[int, int, int, int, int]
 
 
 class HamstrungSquadEnv(gym.Env):
     """Hamstrung squad game environment"""
 
-    metadata = {"render.modes": ["ansi", "rgb_array"], "render.fps": 4}
+    metadata = {"render.modes": ["ansi"], "render.fps": 4}
 
     def __init__(
         self,
@@ -40,7 +38,6 @@ class HamstrungSquadEnv(gym.Env):
         self.observation_space = gym.spaces.Box(
             low=0, high=grid_size - 1, shape=(5,), dtype=np.int32
         )
-        self.payoff_table = np.full((grid_size, grid_size), np.nan)
         self.seed(seed=seed)
 
     def seed(self, seed: int = None) -> None:
@@ -54,16 +51,20 @@ class HamstrungSquadEnv(gym.Env):
         pursuer: Optional[Coord] = None,
         evader: Optional[Coord] = None,
         pursuer_direction: Optional[int] = None,
+        store: bool = False,
     ) -> ObsType:
         _get = lambda x, default: x if x is not None else default
         pursuer = _get(pursuer, self.pursuer)
         evader = _get(evader, self.evader)
         pursuer_direction = _get(pursuer_direction, self.pursuer_direction)
+        if store:
+            self.pursuer = pursuer
+            self.evader = evader
+            self.pursuer_direction = pursuer_direction
         return np.array([*pursuer, *evader, pursuer_direction])
 
     def reset(
         self,
-        evader: Coord,
         *,
         seed: Optional[int] = None,
         options: Optional[Dict[str, Any]] = None,
@@ -71,8 +72,8 @@ class HamstrungSquadEnv(gym.Env):
         super().reset(seed=seed)
         self.pursuer: Coord = np.array([self.grid_size - 1, 0])
         self.pursuer_direction: int = 0  # 0: Up, 1: Right, 2: Down, 3: Left
-        self.evader: Coord = np.array(evader)
-        self.payoff: int = 0
+        assert options is not None and "evader" in options, "Evader position required"
+        self.evader: Coord = np.array(options["evader"])
         info = {
             "pursuer_start": self.pursuer,
             "evader_start": self.evader,
@@ -87,9 +88,9 @@ class HamstrungSquadEnv(gym.Env):
         pursuer_action, evader_action = action
 
         # Pursuer moves
-        if pursuer_action == 0:  # Up
+        if pursuer_action == 0:  # Forward
             pursuer_direction = self.pursuer_direction
-        elif pursuer_action == 1:  # Right
+        elif pursuer_action == 1:  # Turn right
             pursuer_direction = (self.pursuer_direction + 1) % 4
         pursuer_delta = np.array([(-2, 0), (0, 2), (2, 0), (0, -2)][pursuer_direction])
         pursuer = np.clip(self.pursuer + pursuer_delta, 0, self.grid_size - 1)
@@ -99,38 +100,14 @@ class HamstrungSquadEnv(gym.Env):
         evader = np.clip(self.evader + evader_delta, 0, self.grid_size - 1)
 
         # Check termination
-        payoff = self.payoff + 1
         terminated: bool = np.linalg.norm(pursuer - evader) <= 1.5
-        truncated: bool = payoff >= self.max_payoff or (
-            self.payoff_table[tuple(evader)] != np.nan
-            and payoff > self.payoff_table[tuple(evader)]
-        )
         reward = self.rewards["capture"] if terminated else self.rewards["default"]
-        if not simulate:
-            self.pursuer = pursuer
-            self.evader = evader
-            self.pursuer_direction = pursuer_direction
-            self.payoff = payoff
-            if terminated:
-                self.payoff_table[tuple(self.evader)] = self.payoff
-            elif truncated:
-                self.payoff_table[tuple(self.evader)] = -1
-            obs = self._get_obs()
-        else:
-            obs = self._get_obs(pursuer, evader, pursuer_direction)
-        return obs, reward, terminated, truncated, {}
-
-    def _show_payoff_table(self) -> None:
-        print("Payoff table:")
-        show = lambda x: f"{x:2.0f}" if not (np.isnan(x) or x == -1) else " ."
-        for row in self.payoff_table:
-            print(" ".join(show(x) for x in row))
+        obs = self._get_obs(pursuer, evader, pursuer_direction, store=not simulate)
+        return obs, reward, terminated, False, {}
 
     def render(self) -> None:
         if self.render_mode == "ansi":
             return self._render_ansi()
-        elif self.render_mode == "rgb_array":
-            return self._render_rgb_array()
         else:
             raise NotImplementedError
 
@@ -152,20 +129,3 @@ class HamstrungSquadEnv(gym.Env):
         grid = self._create_grid()
         ansi = "\n".join(" ".join(f"{color_map[c]}{c}" for c in row) for row in grid)
         print(ansi, end="\033[0m\n" if use_color else "\n")
-
-    def _render_rgb_array(self) -> None:
-        color_map = {
-            ".": np.array([255, 255, 255]),  # White
-            "P": np.array([0, 0, 255]),  # Blue
-            "E": np.array([255, 0, 0]),  # Red
-        }
-        grid = self._create_grid()
-        rgb_array = np.zeros((self.grid_size, self.grid_size, 3), dtype=np.uint8)
-        for i, row in enumerate(grid):
-            for j, cell in enumerate(row):
-                rgb_array[i, j] = color_map[cell]
-        plt.imshow(rgb_array)
-        plt.xticks([])
-        plt.yticks([])
-        plt.tight_layout()
-        plt.show()

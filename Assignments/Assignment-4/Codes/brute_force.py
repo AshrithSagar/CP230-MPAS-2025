@@ -17,6 +17,9 @@ class BruteForceAgent:
     def __init__(self, env: HamstrungSquadEnv, max_payoff: int = 10) -> None:
         self.env = env
         self.max_depth = max_payoff
+        self.payoff_table = np.full(
+            (self.env.grid_size, self.env.grid_size), -self.max_depth
+        )
         self.memo = {}
 
     def _minimax(self, obs: ObsType, depth: int, is_evader: bool) -> int:
@@ -36,11 +39,17 @@ class BruteForceAgent:
         self.memo[tuple(obs)] = best_payoff
         return best_payoff
 
+    def _show_payoff_table(self) -> None:
+        print("Payoff table:")
+        show = lambda x: f"{x:2.0f}" if not (np.isnan(x) or x == -1) else " ."
+        for row in self.payoff_table:
+            print(" ".join(show(x) for x in row))
+
     def _train_evader(self, evader: Coord) -> None:
         """Train the agent for a given evader position."""
-        obs, _ = self.env.reset(evader)
+        obs, _ = self.env.reset(options={"evader": evader})
         payoff = self._minimax(obs, self.max_depth, is_evader=False)
-        self.env.payoff_table[tuple(evader)] = payoff
+        self.payoff_table[tuple(evader)] = payoff
 
     def train(self, timed: bool = True, verbose: bool = True) -> Dict[str, Any]:
         """Train the agent"""
@@ -58,5 +67,5 @@ class BruteForceAgent:
             print("Training completed:")
             if timed:
                 print(f" Time: {elapsed:.3f}s")
-            self.env._show_payoff_table()
+            self._show_payoff_table()
         return info

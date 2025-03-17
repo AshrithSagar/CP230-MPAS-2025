@@ -7,11 +7,13 @@ import timeit
 from typing import Any, Dict, Optional
 
 import numpy as np
+from deprecated import deprecated
 from hamstrung_squad import ActType, Coord, HamstrungSquadEnv, ObsType
 from numpy.typing import NDArray
 from tqdm import tqdm
 
 
+@deprecated
 class QLearningAgent:
     """Q-Learning algorithm"""
 

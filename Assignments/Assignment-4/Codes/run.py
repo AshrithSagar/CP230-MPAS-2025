@@ -4,10 +4,12 @@ Run the Hamstrung squad game with the agents
 """
 
 from brute_force import BruteForceAgent
+from deprecated import deprecated
 from hamstrung_squad import HamstrungSquadEnv
 from q_learning import QLearningAgent
 
 
+@deprecated
 def _q_learning(env: HamstrungSquadEnv) -> None:
     agent = QLearningAgent(
         env,
