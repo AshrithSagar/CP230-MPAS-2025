@@ -3,8 +3,7 @@ hamstrung_squad.py
 Hamstrung sqaud game environment
 """
 
-from enum import IntEnum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import gymnasium as gym
 import matplotlib.pyplot as plt
@@ -13,6 +12,8 @@ from numpy.typing import NDArray
 
 Coord = Tuple[int, int]
 Coords = List[Coord]
+ObsType = NDArray
+ActType = Tuple[int, int]
 
 
 class HamstrungSquadEnv(gym.Env):
@@ -23,13 +24,15 @@ class HamstrungSquadEnv(gym.Env):
     def __init__(
         self,
         grid_size: int = 10,
-        max_steps: int = 10,
+        max_payoff: int = 10,
+        rewards: Dict[str, int] = {"capture": 10, "default": -1},
         render_mode: str = "ansi",
         seed: int = 42,
     ):
         super().__init__()
         self.grid_size = grid_size
-        self.max_steps = max_steps
+        self.max_payoff = max_payoff
+        self.rewards = rewards
         self.render_mode = render_mode
         self.action_space = gym.spaces.Tuple(
             (gym.spaces.Discrete(2), gym.spaces.Discrete(4))
@@ -39,64 +42,52 @@ class HamstrungSquadEnv(gym.Env):
         )
         self.seed(seed=seed)
 
-    class Action(IntEnum):
-        UP = 0
-        RIGHT = 1
-        DOWN = 2
-        LEFT = 3
-
     def seed(self, seed: int = None) -> None:
         self._seed = seed
-        self.reset(seed=seed)
+        super().reset(seed=seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
 
-    def _get_obs(self):
-        return np.array(
-            [
-                self.pursuer[0],
-                self.pursuer[1],
-                self.evader[0],
-                self.evader[1],
-                self.pursuer_direction,
-            ],
-            dtype=np.int32,
-        )
+    def _get_obs(self) -> ObsType:
+        return np.array([*self.pursuer, *self.evader, self.pursuer_direction])
 
     def reset(
         self,
+        evader: Coord,
         *,
         seed: Optional[int] = None,
         options: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[NDArray, Dict]:
+    ) -> Tuple[ObsType, Dict]:
         super().reset(seed=seed)
-        self.pursuer: Coord = np.array([1, self.grid_size - 2])
-        self.pursuer_direction = self.Action.UP
-        self.evader: Coord = np.array([self.grid_size - 1, 0])
+        self.pursuer: Coord = np.array([self.grid_size - 1, 0])
+        self.pursuer_direction: int = 0  # 0: Up, 1: Right, 2: Down, 3: Left
+        self.evader: Coord = np.array(evader)
+        self.payoff: int = 0
         return self._get_obs(), {}
 
-    def _direction_to_delta(self, direction):
-        return np.array([(0, -1), (1, 0), (0, 1), (-1, 0)][direction])
-
-    def step(self, action: int) -> Tuple[NDArray, float, bool, bool, Dict]:
+    def step(self, action: int) -> Tuple[ObsType, float, bool, bool, Dict]:
         pursuer_action, evader_action = action
 
         # Pursuer moves
-        if pursuer_action == 1:
+        if pursuer_action == 1:  # Right
             self.pursuer_direction = (self.pursuer_direction + 1) % 4
-        delta = self._direction_to_delta(self.pursuer_direction)
-        self.pursuer = np.clip(self.pursuer + delta * 2, 0, self.grid_size - 1)
+        persuer_delta = np.array(
+            [(-2, 0), (0, 2), (2, 0), (0, -2)][self.pursuer_direction]
+        )
+        self.pursuer = np.clip(self.pursuer + persuer_delta, 0, self.grid_size - 1)
 
         # Evader moves
-        evader_delta = [(-1, 0), (1, 0), (0, -1), (0, 1)][evader_action]
+        evader_delta = np.array([(-1, 0), (1, 0), (0, -1), (0, 1)][evader_action])
         self.evader = np.clip(self.evader + evader_delta, 0, self.grid_size - 1)
 
         # Check termination
-        done = np.linalg.norm(self.pursuer - self.evader) <= 1.5
-        reward = -10 if done else -1
-        return self._get_obs(), reward, done, False, {}
+        self.payoff += 1
+        terminated: bool = np.linalg.norm(self.pursuer - self.evader) <= 1.5
+        truncated: bool = self.payoff >= self.max_payoff
+        reward = self.rewards["capture"] if terminated else self.rewards["default"]
+        return self._get_obs(), reward, terminated, truncated, {}
 
-    def render(self):
+    def render(self) -> None:
         if self.render_mode == "ansi":
             return self._render_ansi()
         elif self.render_mode == "rgb_array":
@@ -110,7 +101,7 @@ class HamstrungSquadEnv(gym.Env):
         grid[self.evader[1], self.evader[0]] = "E"
         return grid
 
-    def _render_ansi(self, use_color: bool = True) -> str:
+    def _render_ansi(self, use_color: bool = True) -> None:
         if use_color:
             color_map = {
                 ".": "\033[0m",  # Default
@@ -122,9 +113,8 @@ class HamstrungSquadEnv(gym.Env):
         grid = self._create_grid()
         ansi = "\n".join(" ".join(f"{color_map[c]}{c}" for c in row) for row in grid)
         print(ansi, end="\033[0m\n" if use_color else "\n")
-        return ansi
 
-    def _render_rgb_array(self) -> NDArray:
+    def _render_rgb_array(self) -> None:
         color_map = {
             ".": np.array([255, 255, 255]),  # White
             "P": np.array([0, 0, 255]),  # Blue
@@ -140,4 +130,3 @@ class HamstrungSquadEnv(gym.Env):
         plt.yticks([])
         plt.tight_layout()
         plt.show()
-        return rgb_array
