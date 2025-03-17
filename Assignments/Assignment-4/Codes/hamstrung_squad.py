@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 
 Coord = Tuple[int, int]
 Coords = List[Coord]
-ObsType = NDArray
+ObsType = Tuple[int, int, int, int, int]
 ActType = Tuple[int, int]
 
 
@@ -49,8 +49,17 @@ class HamstrungSquadEnv(gym.Env):
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
 
-    def _get_obs(self) -> ObsType:
-        return np.array([*self.pursuer, *self.evader, self.pursuer_direction])
+    def _get_obs(
+        self,
+        pursuer: Optional[Coord] = None,
+        evader: Optional[Coord] = None,
+        pursuer_direction: Optional[int] = None,
+    ) -> ObsType:
+        _get = lambda x, default: x if x is not None else default
+        pursuer = _get(pursuer, self.pursuer)
+        evader = _get(evader, self.evader)
+        pursuer_direction = _get(pursuer_direction, self.pursuer_direction)
+        return np.array([*pursuer, *evader, pursuer_direction])
 
     def reset(
         self,
@@ -72,31 +81,44 @@ class HamstrungSquadEnv(gym.Env):
         }
         return self._get_obs(), info
 
-    def step(self, action: ActType) -> Tuple[ObsType, float, bool, bool, Dict]:
+    def step(
+        self, action: ActType, simulate: bool = False
+    ) -> Tuple[ObsType, float, bool, bool, Dict]:
         pursuer_action, evader_action = action
 
         # Pursuer moves
-        if pursuer_action == 1:  # Right
-            self.pursuer_direction = (self.pursuer_direction + 1) % 4
-        pursuer_delta = np.array(
-            [(-2, 0), (0, 2), (2, 0), (0, -2)][self.pursuer_direction]
-        )
-        self.pursuer = np.clip(self.pursuer + pursuer_delta, 0, self.grid_size - 1)
+        if pursuer_action == 0:  # Up
+            pursuer_direction = self.pursuer_direction
+        elif pursuer_action == 1:  # Right
+            pursuer_direction = (self.pursuer_direction + 1) % 4
+        pursuer_delta = np.array([(-2, 0), (0, 2), (2, 0), (0, -2)][pursuer_direction])
+        pursuer = np.clip(self.pursuer + pursuer_delta, 0, self.grid_size - 1)
 
         # Evader moves
         evader_delta = np.array([(-1, 0), (0, 1), (1, 0), (0, -1)][evader_action])
-        self.evader = np.clip(self.evader + evader_delta, 0, self.grid_size - 1)
+        evader = np.clip(self.evader + evader_delta, 0, self.grid_size - 1)
 
         # Check termination
-        self.payoff += 1
-        terminated: bool = np.linalg.norm(self.pursuer - self.evader) <= 1.5
-        truncated: bool = self.payoff >= self.max_payoff
+        payoff = self.payoff + 1
+        terminated: bool = np.linalg.norm(pursuer - evader) <= 1.5
+        truncated: bool = payoff >= self.max_payoff or (
+            self.payoff_table[tuple(evader)] != np.nan
+            and payoff > self.payoff_table[tuple(evader)]
+        )
         reward = self.rewards["capture"] if terminated else self.rewards["default"]
-        if terminated:
-            self.payoff_table[tuple(self.evader)] = self.payoff
-        elif truncated:
-            self.payoff_table[tuple(self.evader)] = -1
-        return self._get_obs(), reward, terminated, truncated, {}
+        if not simulate:
+            self.pursuer = pursuer
+            self.evader = evader
+            self.pursuer_direction = pursuer_direction
+            self.payoff = payoff
+            if terminated:
+                self.payoff_table[tuple(self.evader)] = self.payoff
+            elif truncated:
+                self.payoff_table[tuple(self.evader)] = -1
+            obs = self._get_obs()
+        else:
+            obs = self._get_obs(pursuer, evader, pursuer_direction)
+        return obs, reward, terminated, truncated, {}
 
     def _show_payoff_table(self) -> None:
         print("Payoff table:")
