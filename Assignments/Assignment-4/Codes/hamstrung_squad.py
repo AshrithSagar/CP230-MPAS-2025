@@ -65,7 +65,7 @@ class HamstrungSquadEnv(gym.Env):
         self.payoff: int = 0
         return self._get_obs(), {}
 
-    def step(self, action: int) -> Tuple[ObsType, float, bool, bool, Dict]:
+    def step(self, action: ActType) -> Tuple[ObsType, float, bool, bool, Dict]:
         pursuer_action, evader_action = action
 
         # Pursuer moves
@@ -97,8 +97,8 @@ class HamstrungSquadEnv(gym.Env):
 
     def _create_grid(self) -> NDArray:
         grid = np.full((self.grid_size, self.grid_size), ".", dtype=str)
-        grid[self.pursuer[1], self.pursuer[0]] = "P"
-        grid[self.evader[1], self.evader[0]] = "E"
+        grid[self.pursuer[0], self.pursuer[1]] = "P"
+        grid[self.evader[0], self.evader[1]] = "E"
         return grid
 
     def _render_ansi(self, use_color: bool = True) -> None:
@@ -121,7 +121,7 @@ class HamstrungSquadEnv(gym.Env):
             "E": np.array([255, 0, 0]),  # Red
         }
         grid = self._create_grid()
-        rgb_array = np.zeros((self.size[0], self.size[1], 3), dtype=np.uint8)
+        rgb_array = np.zeros((self.grid_size, self.grid_size, 3), dtype=np.uint8)
         for i, row in enumerate(grid):
             for j, cell in enumerate(row):
                 rgb_array[i, j] = color_map[cell]

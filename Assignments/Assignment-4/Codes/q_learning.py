@@ -58,7 +58,9 @@ class QLearningAgent:
             if self.env.np_random.random() < epsilon:
                 action: ActType = self.env.action_space.sample()
             else:
-                action: ActType = np.argmax(self._get_q_value(obs))
+                action: ActType = np.unravel_index(
+                    np.argmax(self._get_q_value(obs)), self._get_q_value(obs).shape
+                )
             next_obs, reward, terminated, truncated, _ = self.env.step(action)
             q_value = self._get_q_value(obs, action) + self.alpha * (
                 reward
@@ -76,19 +78,18 @@ class QLearningAgent:
         decay_epsilon: callable = None,
     ) -> None:
         """Train the agent for a given evader position"""
+        ex, ey = evader
         episode, epsilon = 1, self.epsilon
-        prev_q_table = np.copy(self.q_table[:, :, evader[0], evader[1], :, :, :])
+        prev_q_table = np.copy(self.q_table[:, :, ex, ey, :, :, :])
         while True:
             self._train_episode(evader=evader, epsilon=epsilon)
             if decay_epsilon:
                 epsilon = decay_epsilon(epsilon)
             if (episodes and episode >= episodes) or np.allclose(
-                self.q_table[:, :, evader[0], evader[1], :, :, :],
-                prev_q_table,
-                atol=threshold,
+                self.q_table[:, :, ex, ey, :, :, :], prev_q_table, atol=threshold
             ):
                 break
-            prev_q_table = self.q_table[:, :, evader[0], evader[1], :, :, :]
+            prev_q_table = self.q_table[:, :, ex, ey, :, :, :]
             episode += 1
 
     def train(
@@ -105,7 +106,7 @@ class QLearningAgent:
         pbar = tqdm(desc="Training", total=self.env.grid_size**2, leave=False)
         for evader in np.ndindex(self.env.grid_size, self.env.grid_size):
             self._train_evader(
-                evader=(self.env.grid_size - evader[0], evader[1]),
+                evader=(self.env.grid_size - evader[0] - 1, evader[1]),
                 episodes=episodes,
                 threshold=threshold,
                 decay_epsilon=decay_epsilon,
