@@ -38,8 +38,9 @@ class HamstrungSquadEnv(gym.Env):
             (gym.spaces.Discrete(2), gym.spaces.Discrete(4))
         )
         self.observation_space = gym.spaces.Box(
-            low=0, high=self.grid_size - 1, shape=(5,), dtype=np.int32
+            low=0, high=grid_size - 1, shape=(5,), dtype=np.int32
         )
+        self.payoff_table = np.zeros((grid_size, grid_size)) * np.nan
         self.seed(seed=seed)
 
     def seed(self, seed: int = None) -> None:
@@ -85,7 +86,17 @@ class HamstrungSquadEnv(gym.Env):
         terminated: bool = np.linalg.norm(self.pursuer - self.evader) <= 1.5
         truncated: bool = self.payoff >= self.max_payoff
         reward = self.rewards["capture"] if terminated else self.rewards["default"]
+        if terminated:
+            self.payoff_table[tuple(self.evader)] = self.payoff
+        elif truncated:
+            self.payoff_table[tuple(self.evader)] = -1
         return self._get_obs(), reward, terminated, truncated, {}
+
+    def _show_payoff_table(self) -> None:
+        print("Payoff table:")
+        show = lambda x: f"{x:2.0f}" if not (np.isnan(x) or x == -1) else " ."
+        for row in self.payoff_table:
+            print(" ".join(show(x) for x in row))
 
     def render(self) -> None:
         if self.render_mode == "ansi":

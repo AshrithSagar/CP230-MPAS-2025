@@ -118,9 +118,14 @@ class QLearningAgent:
         show_pbar = render and self.env.render_mode != "ansi"
         if show_pbar:
             pbar = tqdm(desc="Training", total=self.env.grid_size**2, leave=False)
-        for evader in np.ndindex(self.env.grid_size, self.env.grid_size):
+        while True:
+            if not np.isnan(self.env.payoff_table).any():
+                break
+            evader: Coord = self.env.observation_space.sample()[2:4]
+            if not np.isnan(self.env.payoff_table[tuple(evader)]):
+                continue
             self._train_evader(
-                evader=(self.env.grid_size - evader[0] - 1, evader[1]),
+                evader=evader,
                 episodes=episodes,
                 threshold=threshold,
                 decay_epsilon=decay_epsilon,
@@ -137,4 +142,5 @@ class QLearningAgent:
             print("Training completed:")
             if timed:
                 print(f" Time: {elapsed:.3f}s")
+            self.env._show_payoff_table()
         return info
