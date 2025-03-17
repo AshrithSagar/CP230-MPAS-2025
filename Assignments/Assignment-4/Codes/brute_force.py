@@ -5,26 +5,24 @@ Brute-force agent for the Hamstrung squad game
 
 import numpy as np
 from hamstrung_squad import HamstrungSquadEnv
-from numpy.typing import NDArray
 
 
 class BruteForceAgent:
     def __init__(self, env: HamstrungSquadEnv, max_payoff: int = 10):
         self.env = env
         self.max_payoff = max_payoff
-        self.payoff_table = self.compute_payoff_table()
 
-    def compute_payoff_table(self) -> NDArray:
+    def train(self) -> None:
         gs = self.env.grid_size
-        payoff_table = np.full((gs, gs), self.max_payoff, dtype=int)
+        self.payoff_table = np.full((gs, gs), self.max_payoff, dtype=int)
         for ex, ey in np.ndindex(gs, gs):
-            env = HamstrungSquadEnv(grid_size=gs)
+            env = self.env.__class__(grid_size=gs)
             env.reset(options={"evader": (ex, ey)})
-            payoff = self.optimal_playout(env)
-            payoff_table[ex, ey] = payoff
-        return payoff_table
+            payoff = self._optimal_playout(env)
+            self.payoff_table[ex, ey] = payoff
+        self._show_payoff_table()
 
-    def optimal_playout(self, env: HamstrungSquadEnv) -> int:
+    def _optimal_playout(self, env: HamstrungSquadEnv) -> int:
         visited = set()
         queue = [(env.pursuer, env.evader, env.pursuer_direction, 0)]
         while queue:
@@ -49,7 +47,7 @@ class BruteForceAgent:
                 best_worst_case = min(best_worst_case, worst_case)
         return best_worst_case
 
-    def show_payoff_table(self):
+    def _show_payoff_table(self):
         print("Payoff table:")
         for row in self.payoff_table:
             print(" ".join(f"{x:2d}" for x in row))
