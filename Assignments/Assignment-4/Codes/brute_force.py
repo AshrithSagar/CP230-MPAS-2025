@@ -3,69 +3,53 @@ brute_force.py
 Brute-force agent for the Hamstrung squad game
 """
 
-import timeit
-from typing import Any, Dict
-
 import numpy as np
-from hamstrung_squad import Coord, HamstrungSquadEnv, ObsType
-from tqdm import tqdm
+from hamstrung_squad import HamstrungSquadEnv
+from numpy.typing import NDArray
 
 
 class BruteForceAgent:
-    """Brute-force agent with minimax search"""
-
-    def __init__(self, env: HamstrungSquadEnv, max_payoff: int = 10) -> None:
+    def __init__(self, env: HamstrungSquadEnv, max_payoff: int = 10):
         self.env = env
-        self.max_depth = max_payoff
-        self.payoff_table = np.full(
-            (self.env.grid_size, self.env.grid_size), self.max_depth
-        )
-        self.memo = {}
+        self.max_payoff = max_payoff
+        self.payoff_table = self.compute_payoff_table()
 
-    def _minimax(self, obs: ObsType, depth: int, is_evader: bool = False) -> int:
-        """Minimax search with memoization."""
-        if obs in self.memo:
-            return self.memo[obs]
-        if np.linalg.norm(np.array(obs[:2]) - np.array(obs[2:4])) <= 1.5:
-            return 0  # Immediate capture
-        if depth == 0:
-            return self.max_depth
-        best_payoff = -self.max_depth if is_evader else self.max_depth
-        for action in np.ndindex(2, 4):
-            next_obs, _, _, _, _ = self.env.step(action, simulate=True)
-            payoff = self._minimax(next_obs, depth - 1, not is_evader)
-            _operation = max if is_evader else min
-            best_payoff = _operation(best_payoff, payoff)
-        self.memo[obs] = best_payoff
-        return best_payoff
+    def compute_payoff_table(self) -> NDArray:
+        gs = self.env.grid_size
+        payoff_table = np.full((gs, gs), self.max_payoff, dtype=int)
+        for ex, ey in np.ndindex(gs, gs):
+            env = HamstrungSquadEnv(grid_size=gs)
+            env.reset(options={"evader": (ex, ey)})
+            payoff = self.optimal_playout(env)
+            payoff_table[ex, ey] = payoff
+        return payoff_table
 
-    def _show_payoff_table(self) -> None:
+    def optimal_playout(self, env: HamstrungSquadEnv) -> int:
+        visited = set()
+        queue = [(env.pursuer, env.evader, env.pursuer_direction, 0)]
+        while queue:
+            pursuer, evader, pursuer_dir, steps = queue.pop(0)
+            if steps >= self.max_payoff:
+                continue
+            if np.linalg.norm(np.array(pursuer) - np.array(evader)) <= 1.5:
+                return steps
+            if (pursuer, evader, pursuer_dir) in visited:
+                continue
+            visited.add((pursuer, evader, pursuer_dir))
+            best_worst_case = self.max_payoff
+            for pursuer_action in range(2):  # Forward, Turn Right
+                worst_case = 0
+                for evader_action in range(4):  # Up, Right, Down, Left
+                    next_obs, _, _, _, _ = env.step(
+                        (pursuer_action, evader_action), simulate=True
+                    )
+                    pursuer, evader, pursuer_dir = next_obs[:3]
+                    queue.append((pursuer, evader, pursuer_dir, steps + 1))
+                    worst_case = max(worst_case, steps + 1)
+                best_worst_case = min(best_worst_case, worst_case)
+        return best_worst_case
+
+    def show_payoff_table(self):
         print("Payoff table:")
-        show = lambda x: f"{x:2d}" if x >= 0 else "  "
         for row in self.payoff_table:
-            print(" ".join(show(x) for x in row))
-
-    def _train_evader(self, evader: Coord) -> None:
-        """Train the agent for a given evader position."""
-        obs, _ = self.env.reset(options={"evader": evader})
-        payoff = self._minimax(obs, self.max_depth)
-        self.payoff_table[tuple(evader)] = payoff
-
-    def train(self, timed: bool = True, verbose: bool = True) -> Dict[str, Any]:
-        """Train the agent"""
-        info: Dict[str, Any] = {}
-        start_time = timeit.default_timer() if timed else None
-        pbar = tqdm(desc="Training", total=self.env.grid_size**2, leave=False)
-        for evader in np.ndindex(self.env.grid_size, self.env.grid_size):
-            self._train_evader(evader=evader)
-            pbar.update()
-        pbar.close()
-        if timed:
-            elapsed = timeit.default_timer() - start_time
-            info["time"] = elapsed
-        if verbose:
-            print("Training completed:")
-            if timed:
-                print(f" Time: {elapsed:.3f}s")
-            self._show_payoff_table()
-        return info
+            print(" ".join(f"{x:2d}" for x in row))
