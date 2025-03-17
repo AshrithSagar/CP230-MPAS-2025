@@ -22,15 +22,11 @@ class HamstrungSquadEnv(gym.Env):
     def __init__(
         self,
         grid_size: int = 10,
-        max_payoff: int = 10,
-        rewards: Dict[str, int] = {"capture": 10, "default": -1},
         render_mode: str = "ansi",
         seed: int = 42,
     ):
         super().__init__()
         self.grid_size = grid_size
-        self.max_payoff = max_payoff
-        self.rewards = rewards
         self.render_mode = render_mode
         self.action_space = gym.spaces.Tuple(
             (gym.spaces.Discrete(2), gym.spaces.Discrete(4))
@@ -86,6 +82,7 @@ class HamstrungSquadEnv(gym.Env):
         self, action: ActType, simulate: bool = False
     ) -> Tuple[ObsType, float, bool, bool, Dict]:
         pursuer_action, evader_action = action
+        _safe_move = lambda pos, delta: np.clip(pos + delta, 0, self.grid_size - 1)
 
         # Pursuer moves
         if pursuer_action == 0:  # Forward
@@ -93,17 +90,16 @@ class HamstrungSquadEnv(gym.Env):
         elif pursuer_action == 1:  # Turn right
             pursuer_direction = (self.pursuer_direction + 1) % 4
         pursuer_delta = np.array([(-2, 0), (0, 2), (2, 0), (0, -2)][pursuer_direction])
-        pursuer = np.clip(self.pursuer + pursuer_delta, 0, self.grid_size - 1)
+        pursuer = _safe_move(self.pursuer, pursuer_delta)
 
         # Evader moves
         evader_delta = np.array([(-1, 0), (0, 1), (1, 0), (0, -1)][evader_action])
-        evader = np.clip(self.evader + evader_delta, 0, self.grid_size - 1)
+        evader = _safe_move(self.evader, evader_delta)
 
         # Check termination
         terminated: bool = np.linalg.norm(pursuer - evader) <= 1.5
-        reward = self.rewards["capture"] if terminated else self.rewards["default"]
         obs = self._get_obs(pursuer, evader, pursuer_direction, store=not simulate)
-        return obs, reward, terminated, False, {}
+        return obs, 0.0, terminated, terminated, {}
 
     def render(self) -> None:
         if self.render_mode == "ansi":
@@ -113,8 +109,10 @@ class HamstrungSquadEnv(gym.Env):
 
     def _create_grid(self) -> NDArray:
         grid = np.full((self.grid_size, self.grid_size), ".", dtype=str)
-        grid[self.evader[0], self.evader[1]] = "E"
-        grid[self.pursuer[0], self.pursuer[1]] = "P"
+        if hasattr(self, "evader"):
+            grid[tuple(self.evader)] = "E"
+        if hasattr(self, "pursuer"):
+            grid[tuple(self.pursuer)] = "P"
         return grid
 
     def _render_ansi(self, use_color: bool = True) -> None:

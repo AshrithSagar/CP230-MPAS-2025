@@ -29,13 +29,7 @@ def _q_learning(env: HamstrungSquadEnv) -> None:
 
 
 def main():
-    env = HamstrungSquadEnv(
-        grid_size=7,
-        max_payoff=10,
-        rewards={"capture": 10, "default": -1},
-        render_mode="ansi",
-        seed=42,
-    )
+    env = HamstrungSquadEnv(grid_size=7, render_mode="ansi", seed=42)
     agent = BruteForceAgent(env, max_payoff=10)
     agent.train(timed=True, verbose=True)
 
