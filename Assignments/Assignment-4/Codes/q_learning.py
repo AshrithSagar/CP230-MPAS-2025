@@ -21,7 +21,7 @@ class QLearningAgent:
         alpha: float = 0.1,
         gamma: float = 0.9,
         epsilon: float = 0.1,
-        initial_q_table: np.ndarray = None,
+        initial_q_table: Optional[NDArray] = None,
     ):
         self.env = env
         self.alpha = alpha
@@ -118,12 +118,7 @@ class QLearningAgent:
         show_pbar = render and self.env.render_mode != "ansi"
         if show_pbar:
             pbar = tqdm(desc="Training", total=self.env.grid_size**2, leave=False)
-        while True:
-            if not np.isnan(self.env.payoff_table).any():
-                break
-            evader: Coord = self.env.observation_space.sample()[2:4]
-            if not np.isnan(self.env.payoff_table[tuple(evader)]):
-                continue
+        for evader in np.ndindex(self.env.grid_size, self.env.grid_size):
             self._train_evader(
                 evader=evader,
                 episodes=episodes,

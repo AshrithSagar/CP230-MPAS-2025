@@ -1,6 +1,6 @@
 """
 hamstrung_squad.py
-Hamstrung sqaud game environment
+Hamstrung squad game environment
 """
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -40,7 +40,7 @@ class HamstrungSquadEnv(gym.Env):
         self.observation_space = gym.spaces.Box(
             low=0, high=grid_size - 1, shape=(5,), dtype=np.int32
         )
-        self.payoff_table = np.zeros((grid_size, grid_size)) * np.nan
+        self.payoff_table = np.full((grid_size, grid_size), np.nan)
         self.seed(seed=seed)
 
     def seed(self, seed: int = None) -> None:
@@ -64,7 +64,13 @@ class HamstrungSquadEnv(gym.Env):
         self.pursuer_direction: int = 0  # 0: Up, 1: Right, 2: Down, 3: Left
         self.evader: Coord = np.array(evader)
         self.payoff: int = 0
-        return self._get_obs(), {}
+        info = {
+            "pursuer_start": self.pursuer,
+            "evader_start": self.evader,
+            "pursuer_direction": self.pursuer_direction,
+            "seed": self._seed,
+        }
+        return self._get_obs(), info
 
     def step(self, action: ActType) -> Tuple[ObsType, float, bool, bool, Dict]:
         pursuer_action, evader_action = action
@@ -72,10 +78,10 @@ class HamstrungSquadEnv(gym.Env):
         # Pursuer moves
         if pursuer_action == 1:  # Right
             self.pursuer_direction = (self.pursuer_direction + 1) % 4
-        persuer_delta = np.array(
+        pursuer_delta = np.array(
             [(-2, 0), (0, 2), (2, 0), (0, -2)][self.pursuer_direction]
         )
-        self.pursuer = np.clip(self.pursuer + persuer_delta, 0, self.grid_size - 1)
+        self.pursuer = np.clip(self.pursuer + pursuer_delta, 0, self.grid_size - 1)
 
         # Evader moves
         evader_delta = np.array([(-1, 0), (0, 1), (1, 0), (0, -1)][evader_action])

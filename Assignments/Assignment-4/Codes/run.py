@@ -1,6 +1,6 @@
 """
 run.py
-Run the Hamstrung sqaud game with the Q-learning agent
+Run the Hamstrung squad game with the Q-learning agent
 """
 
 from hamstrung_squad import HamstrungSquadEnv
