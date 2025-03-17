@@ -9,7 +9,7 @@ from q_learning import QLearningAgent
 
 def main():
     env = HamstrungSquadEnv(
-        grid_size=10,
+        grid_size=5,
         max_payoff=10,
         rewards={"capture": 10, "default": -1},
         render_mode="ansi",
@@ -23,10 +23,13 @@ def main():
         initial_q_table=None,
     )
     agent.train(
-        episodes=500,
+        episodes=None,
+        threshold=1e-4,
         decay_epsilon=lambda eps: max(0.1, eps * 0.99),
+        render=True,
+        timed=True,
+        verbose=True,
     )
-    env.render()
 
 
 if __name__ == "__main__":

@@ -77,7 +77,7 @@ class HamstrungSquadEnv(gym.Env):
         self.pursuer = np.clip(self.pursuer + persuer_delta, 0, self.grid_size - 1)
 
         # Evader moves
-        evader_delta = np.array([(-1, 0), (1, 0), (0, -1), (0, 1)][evader_action])
+        evader_delta = np.array([(-1, 0), (0, 1), (1, 0), (0, -1)][evader_action])
         self.evader = np.clip(self.evader + evader_delta, 0, self.grid_size - 1)
 
         # Check termination
@@ -97,8 +97,8 @@ class HamstrungSquadEnv(gym.Env):
 
     def _create_grid(self) -> NDArray:
         grid = np.full((self.grid_size, self.grid_size), ".", dtype=str)
-        grid[self.pursuer[0], self.pursuer[1]] = "P"
         grid[self.evader[0], self.evader[1]] = "E"
+        grid[self.pursuer[0], self.pursuer[1]] = "P"
         return grid
 
     def _render_ansi(self, use_color: bool = True) -> None:

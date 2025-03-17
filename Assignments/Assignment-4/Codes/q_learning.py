@@ -49,9 +49,13 @@ class QLearningAgent:
         pa, ea = action
         self.q_table[px, py, ex, ey, pd, pa, ea] = value
 
-    def _train_episode(self, evader: Coord, epsilon: float = None) -> None:
+    def _train_episode(
+        self, evader: Coord, epsilon: float = None, render_mode: str = None
+    ) -> None:
         """Train the agent for a single episode"""
         obs, _ = self.env.reset(evader)
+        if render_mode:
+            self.env.render()
         epsilon = epsilon or self.epsilon
         terminated, truncated = False, False
         while not (terminated or truncated):
@@ -68,7 +72,13 @@ class QLearningAgent:
                 - self._get_q_value(obs, action)
             )
             self._set_q_value(obs, action, q_value)
+            if render_mode:
+                if render_mode == "ansi":
+                    print(f"{obs} -> {action} -> {reward}")
+                self.env.render()
             obs = next_obs
+        if render_mode == "ansi":
+            print(f"{obs} -> {'Terminated' if terminated else 'Truncated'}")
 
     def _train_evader(
         self,
@@ -76,13 +86,14 @@ class QLearningAgent:
         episodes: int = None,
         threshold: float = 1e-4,
         decay_epsilon: callable = None,
+        render_mode: str = None,
     ) -> None:
         """Train the agent for a given evader position"""
         ex, ey = evader
         episode, epsilon = 1, self.epsilon
         prev_q_table = np.copy(self.q_table[:, :, ex, ey, :, :, :])
         while True:
-            self._train_episode(evader=evader, epsilon=epsilon)
+            self._train_episode(evader=evader, epsilon=epsilon, render_mode=render_mode)
             if decay_epsilon:
                 epsilon = decay_epsilon(epsilon)
             if (episodes and episode >= episodes) or np.allclose(
@@ -97,22 +108,28 @@ class QLearningAgent:
         episodes: int = None,
         threshold: float = 1e-4,
         decay_epsilon: callable = None,
+        render: bool = False,
         timed: bool = True,
         verbose: bool = True,
     ) -> Dict[str, Any]:
         """Train the agent"""
         info: Dict[str, Any] = {"threshold": threshold}
         start_time = timeit.default_timer() if timed else None
-        pbar = tqdm(desc="Training", total=self.env.grid_size**2, leave=False)
+        show_pbar = render and self.env.render_mode != "ansi"
+        if show_pbar:
+            pbar = tqdm(desc="Training", total=self.env.grid_size**2, leave=False)
         for evader in np.ndindex(self.env.grid_size, self.env.grid_size):
             self._train_evader(
                 evader=(self.env.grid_size - evader[0] - 1, evader[1]),
                 episodes=episodes,
                 threshold=threshold,
                 decay_epsilon=decay_epsilon,
+                render_mode=self.env.render_mode if render else None,
             )
-            pbar.update()
-        pbar.close()
+            if show_pbar:
+                pbar.update()
+        if show_pbar:
+            pbar.close()
         if timed:
             elapsed = timeit.default_timer() - start_time
             info["time"] = elapsed
