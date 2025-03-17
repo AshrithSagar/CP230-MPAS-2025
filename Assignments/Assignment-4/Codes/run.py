@@ -8,8 +8,7 @@ from hamstrung_squad import HamstrungSquadEnv
 
 def main():
     env = HamstrungSquadEnv(
-        size=(10, 10),
-        start={"pursuer": (0, 0), "evader": (9, 9)},
+        grid_size=20,
         max_steps=10,
         render_mode="ansi",
         seed=42,

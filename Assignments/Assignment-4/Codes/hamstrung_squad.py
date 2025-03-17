@@ -22,29 +22,28 @@ class HamstrungSquadEnv(gym.Env):
 
     def __init__(
         self,
-        size: Tuple[int, int],
-        start: Dict[str, Union[Coord, Coords]],
+        grid_size: int = 10,
         max_steps: int = 10,
         render_mode: str = "ansi",
         seed: int = 42,
     ):
         super().__init__()
-        self.size = size
-        assert "pursuer" in start and "evader" in start
-        self.start = start
-        self.pursuer = start["pursuer"]
-        self.evader = start["evader"]
+        self.grid_size = grid_size
         self.max_steps = max_steps
         self.render_mode = render_mode
-        self.action_space = gym.spaces.Discrete(4)
-        self.observation_space = gym.spaces.MultiDiscrete([*size, *size])
+        self.action_space = gym.spaces.Tuple(
+            (gym.spaces.Discrete(2), gym.spaces.Discrete(4))
+        )
+        self.observation_space = gym.spaces.Box(
+            low=0, high=self.grid_size - 1, shape=(5,), dtype=np.int32
+        )
         self.seed(seed=seed)
 
     class Action(IntEnum):
-        RIGHT = 0
-        DOWN = 1
-        LEFT = 2
-        UP = 3
+        UP = 0
+        RIGHT = 1
+        DOWN = 2
+        LEFT = 3
 
     def seed(self, seed: int = None) -> None:
         self._seed = seed
@@ -52,8 +51,17 @@ class HamstrungSquadEnv(gym.Env):
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
 
-    def step(self, action: int) -> Tuple[NDArray, float, bool, bool, Dict]:
-        pass
+    def _get_obs(self):
+        return np.array(
+            [
+                self.pursuer[0],
+                self.pursuer[1],
+                self.evader[0],
+                self.evader[1],
+                self.pursuer_direction,
+            ],
+            dtype=np.int32,
+        )
 
     def reset(
         self,
@@ -62,7 +70,31 @@ class HamstrungSquadEnv(gym.Env):
         options: Optional[Dict[str, Any]] = None,
     ) -> Tuple[NDArray, Dict]:
         super().reset(seed=seed)
-        pass
+        self.pursuer: Coord = np.array([1, self.grid_size - 2])
+        self.pursuer_direction = self.Action.UP
+        self.evader: Coord = np.array([self.grid_size - 1, 0])
+        return self._get_obs(), {}
+
+    def _direction_to_delta(self, direction):
+        return np.array([(0, -1), (1, 0), (0, 1), (-1, 0)][direction])
+
+    def step(self, action: int) -> Tuple[NDArray, float, bool, bool, Dict]:
+        pursuer_action, evader_action = action
+
+        # Pursuer moves
+        if pursuer_action == 1:
+            self.pursuer_direction = (self.pursuer_direction + 1) % 4
+        delta = self._direction_to_delta(self.pursuer_direction)
+        self.pursuer = np.clip(self.pursuer + delta * 2, 0, self.grid_size - 1)
+
+        # Evader moves
+        evader_delta = [(-1, 0), (1, 0), (0, -1), (0, 1)][evader_action]
+        self.evader = np.clip(self.evader + evader_delta, 0, self.grid_size - 1)
+
+        # Check termination
+        done = np.linalg.norm(self.pursuer - self.evader) <= 1.5
+        reward = -10 if done else -1
+        return self._get_obs(), reward, done, False, {}
 
     def render(self):
         if self.render_mode == "ansi":
@@ -73,9 +105,9 @@ class HamstrungSquadEnv(gym.Env):
             raise NotImplementedError
 
     def _create_grid(self) -> NDArray:
-        grid = np.full(self.size, ".")
-        grid[self.pursuer] = "P"
-        grid[self.evader] = "E"
+        grid = np.full((self.grid_size, self.grid_size), ".", dtype=str)
+        grid[self.pursuer[1], self.pursuer[0]] = "P"
+        grid[self.evader[1], self.evader[0]] = "E"
         return grid
 
     def _render_ansi(self, use_color: bool = True) -> str:
