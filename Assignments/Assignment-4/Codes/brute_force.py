@@ -18,37 +18,37 @@ class BruteForceAgent:
         self.env = env
         self.max_depth = max_payoff
         self.payoff_table = np.full(
-            (self.env.grid_size, self.env.grid_size), -self.max_depth
+            (self.env.grid_size, self.env.grid_size), self.max_depth
         )
         self.memo = {}
 
-    def _minimax(self, obs: ObsType, depth: int, is_evader: bool) -> int:
+    def _minimax(self, obs: ObsType, depth: int, is_evader: bool = False) -> int:
         """Minimax search with memoization."""
-        if tuple(obs) in self.memo:
-            return self.memo[tuple(obs)]
+        if obs in self.memo:
+            return self.memo[obs]
         if np.linalg.norm(np.array(obs[:2]) - np.array(obs[2:4])) <= 1.5:
             return 0  # Immediate capture
-        best_payoff = -self.max_depth if is_evader else self.max_depth
         if depth == 0:
-            return best_payoff
+            return self.max_depth
+        best_payoff = -self.max_depth if is_evader else self.max_depth
         for action in np.ndindex(2, 4):
             next_obs, _, _, _, _ = self.env.step(action, simulate=True)
-            payoff = self._minimax(tuple(next_obs), depth - 1, not is_evader)
+            payoff = self._minimax(next_obs, depth - 1, not is_evader)
             _operation = max if is_evader else min
             best_payoff = _operation(best_payoff, payoff)
-        self.memo[tuple(obs)] = best_payoff
+        self.memo[obs] = best_payoff
         return best_payoff
 
     def _show_payoff_table(self) -> None:
         print("Payoff table:")
-        show = lambda x: f"{x:2.0f}" if not (np.isnan(x) or x == -1) else " ."
+        show = lambda x: f"{x:2d}" if x >= 0 else "  "
         for row in self.payoff_table:
             print(" ".join(show(x) for x in row))
 
     def _train_evader(self, evader: Coord) -> None:
         """Train the agent for a given evader position."""
         obs, _ = self.env.reset(options={"evader": evader})
-        payoff = self._minimax(obs, self.max_depth, is_evader=False)
+        payoff = self._minimax(obs, self.max_depth)
         self.payoff_table[tuple(evader)] = payoff
 
     def train(self, timed: bool = True, verbose: bool = True) -> Dict[str, Any]:

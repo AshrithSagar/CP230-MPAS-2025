@@ -61,7 +61,7 @@ class HamstrungSquadEnv(gym.Env):
             self.pursuer = pursuer
             self.evader = evader
             self.pursuer_direction = pursuer_direction
-        return np.array([*pursuer, *evader, pursuer_direction])
+        return (*pursuer, *evader, pursuer_direction)
 
     def reset(
         self,
@@ -70,10 +70,10 @@ class HamstrungSquadEnv(gym.Env):
         options: Optional[Dict[str, Any]] = None,
     ) -> Tuple[ObsType, Dict]:
         super().reset(seed=seed)
-        self.pursuer: Coord = np.array([self.grid_size - 1, 0])
+        self.pursuer: Coord = (self.grid_size - 1, 0)
         self.pursuer_direction: int = 0  # 0: Up, 1: Right, 2: Down, 3: Left
         assert options is not None and "evader" in options, "Evader position required"
-        self.evader: Coord = np.array(options["evader"])
+        self.evader: Coord = options["evader"]
         info = {
             "pursuer_start": self.pursuer,
             "evader_start": self.evader,
