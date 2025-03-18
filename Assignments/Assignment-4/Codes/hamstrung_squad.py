@@ -44,20 +44,20 @@ class HamstrungSquadEnv(gym.Env):
 
     def _get_obs(
         self,
-        pursuer: Optional[Coord] = None,
-        evader: Optional[Coord] = None,
-        pursuer_direction: Optional[int] = None,
+        pursuer_pos: Optional[Coord] = None,
+        evader_pos: Optional[Coord] = None,
+        pursuer_dir: Optional[int] = None,
         store: bool = False,
     ) -> ObsType:
         _get = lambda x, default: x if x is not None else default
-        pursuer = _get(pursuer, self.pursuer)
-        evader = _get(evader, self.evader)
-        pursuer_direction = _get(pursuer_direction, self.pursuer_direction)
+        pursuer_pos = _get(pursuer_pos, self.pursuer_pos)
+        evader_pos = _get(evader_pos, self.evader_pos)
+        pursuer_dir = _get(pursuer_dir, self.pursuer_dir)
         if store:
-            self.pursuer = pursuer
-            self.evader = evader
-            self.pursuer_direction = pursuer_direction
-        return (*pursuer, *evader, pursuer_direction)
+            self.pursuer_pos = pursuer_pos
+            self.evader_pos = evader_pos
+            self.pursuer_dir = pursuer_dir
+        return (*pursuer_pos, *evader_pos, pursuer_dir)
 
     def reset(
         self,
@@ -66,14 +66,16 @@ class HamstrungSquadEnv(gym.Env):
         options: Optional[Dict[str, Any]] = None,
     ) -> Tuple[ObsType, Dict]:
         super().reset(seed=seed)
-        self.pursuer: Coord = (self.grid_size - 1, 0)
-        self.pursuer_direction: int = 0  # 0: Up, 1: Right, 2: Down, 3: Left
-        assert options is not None and "evader" in options, "Evader position required"
-        self.evader: Coord = options["evader"]
+        self.pursuer_pos: Coord = (self.grid_size - 1, 0)
+        self.pursuer_dir: int = 0  # 0: Up, 1: Right, 2: Down, 3: Left
+        assert (
+            options is not None and "evader_pos" in options
+        ), "Evader position required"
+        self.evader_pos: Coord = options["evader_pos"]
         info = {
-            "pursuer_start": self.pursuer,
-            "evader_start": self.evader,
-            "pursuer_direction": self.pursuer_direction,
+            "pursuer_pos": self.pursuer_pos,
+            "evader_pos": self.evader_pos,
+            "pursuer_dir": self.pursuer_dir,
             "seed": self._seed,
         }
         return self._get_obs(), info
@@ -86,19 +88,19 @@ class HamstrungSquadEnv(gym.Env):
 
         # Pursuer moves
         if pursuer_action == 0:  # Forward
-            pursuer_direction = self.pursuer_direction
+            pursuer_dir = self.pursuer_dir
         elif pursuer_action == 1:  # Turn right
-            pursuer_direction = (self.pursuer_direction + 1) % 4
-        pursuer_delta = np.array([(-2, 0), (0, 2), (2, 0), (0, -2)][pursuer_direction])
-        pursuer = _safe_move(self.pursuer, pursuer_delta)
+            pursuer_dir = (self.pursuer_dir + 1) % 4
+        pursuer_delta = np.array([(-2, 0), (0, 2), (2, 0), (0, -2)][pursuer_dir])
+        pursuer_pos = _safe_move(self.pursuer_pos, pursuer_delta)
 
         # Evader moves
         evader_delta = np.array([(-1, 0), (0, 1), (1, 0), (0, -1)][evader_action])
-        evader = _safe_move(self.evader, evader_delta)
+        evader_pos = _safe_move(self.evader_pos, evader_delta)
 
         # Check termination
-        terminated: bool = np.linalg.norm(pursuer - evader) <= 1.5
-        obs = self._get_obs(pursuer, evader, pursuer_direction, store=not simulate)
+        terminated: bool = np.linalg.norm(pursuer_pos - evader_pos) <= 1.5
+        obs = self._get_obs(pursuer_pos, evader_pos, pursuer_dir, store=not simulate)
         return obs, 0.0, terminated, terminated, {}
 
     def render(self) -> None:
@@ -109,10 +111,10 @@ class HamstrungSquadEnv(gym.Env):
 
     def _create_grid(self) -> NDArray:
         grid = np.full((self.grid_size, self.grid_size), ".", dtype=str)
-        if hasattr(self, "evader"):
-            grid[tuple(self.evader)] = "E"
-        if hasattr(self, "pursuer"):
-            grid[tuple(self.pursuer)] = "P"
+        if hasattr(self, "evader_pos"):
+            grid[tuple(self.evader_pos)] = "E"
+        if hasattr(self, "pursuer_pos"):
+            grid[tuple(self.pursuer_pos)] = "P"
         return grid
 
     def _render_ansi(self, use_color: bool = True) -> None:

@@ -3,6 +3,8 @@ brute_force.py
 Brute-force agent for the Hamstrung squad game
 """
 
+from collections import deque
+
 import numpy as np
 from hamstrung_squad import HamstrungSquadEnv
 
@@ -14,40 +16,35 @@ class BruteForceAgent:
 
     def train(self) -> None:
         gs = self.env.grid_size
-        self.payoff_table = np.full((gs, gs), self.max_payoff, dtype=int)
+        self.payoff_table = np.full((gs, gs), np.nan)
         for ex, ey in np.ndindex(gs, gs):
             env = self.env.__class__(grid_size=gs)
-            env.reset(options={"evader": (ex, ey)})
+            env.reset(options={"evader_pos": (ex, ey)})
             payoff = self._optimal_playout(env)
-            self.payoff_table[ex, ey] = payoff
+            if payoff <= self.max_payoff:
+                self.payoff_table[ex, ey] = payoff
         self._show_payoff_table()
 
     def _optimal_playout(self, env: HamstrungSquadEnv) -> int:
+        """Computes the optimal number of steps to capture the evader."""
+        obs = env._get_obs()
+        queue = deque([(obs, 0)])
         visited = set()
-        queue = [(env.pursuer, env.evader, env.pursuer_direction, 0)]
+        visited.add(obs)
         while queue:
-            pursuer, evader, pursuer_dir, steps = queue.pop(0)
-            if steps >= self.max_payoff:
+            (obs, payoff) = queue.popleft()
+            if np.linalg.norm(np.array(obs[0:2]) - np.array(obs[2:4])) <= 1.5:
+                return payoff
+            if payoff >= self.max_payoff:
                 continue
-            if np.linalg.norm(np.array(pursuer) - np.array(evader)) <= 1.5:
-                return steps
-            if (pursuer, evader, pursuer_dir) in visited:
-                continue
-            visited.add((pursuer, evader, pursuer_dir))
-            best_worst_case = self.max_payoff
-            for pursuer_action in range(2):  # Forward, Turn Right
-                worst_case = 0
-                for evader_action in range(4):  # Up, Right, Down, Left
-                    next_obs, _, _, _, _ = env.step(
-                        (pursuer_action, evader_action), simulate=True
-                    )
-                    pursuer, evader, pursuer_dir = next_obs[:3]
-                    queue.append((pursuer, evader, pursuer_dir, steps + 1))
-                    worst_case = max(worst_case, steps + 1)
-                best_worst_case = min(best_worst_case, worst_case)
-        return best_worst_case
+            for action in np.ndindex(2, 4):
+                obs, _, _, _, _ = env.step(action, simulate=True)
+                if obs not in visited:
+                    visited.add(obs)
+                    queue.append((obs, payoff + 1))
+        return np.inf
 
     def _show_payoff_table(self):
         print("Payoff table:")
         for row in self.payoff_table:
-            print(" ".join(f"{x:2d}" for x in row))
+            print(" ".join(f"{x:3.0f}" if not np.isnan(x) else "  -" for x in row))
