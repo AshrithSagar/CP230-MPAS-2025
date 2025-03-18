@@ -81,22 +81,27 @@ class HamstrungSquadEnv(gym.Env):
         return self._get_obs(), info
 
     def step(
-        self, action: ActType, simulate: bool = False
+        self, action: ActType, obs: Optional[ObsType] = None, simulate: bool = False
     ) -> Tuple[ObsType, float, bool, bool, Dict]:
         pursuer_action, evader_action = action
+        if obs is not None:
+            simulate = True
+            pursuer_pos, evader_pos, pursuer_dir = obs[:2], obs[2:4], obs[4]
+        else:
+            pursuer_pos = self.pursuer_pos
+            evader_pos = self.evader_pos
+            pursuer_dir = self.pursuer_dir
         _safe_move = lambda pos, delta: np.clip(pos + delta, 0, self.grid_size - 1)
 
         # Pursuer moves
-        if pursuer_action == 0:  # Forward
-            pursuer_dir = self.pursuer_dir
-        elif pursuer_action == 1:  # Turn right
-            pursuer_dir = (self.pursuer_dir + 1) % 4
+        if pursuer_action == 1:  # Turn right
+            pursuer_dir = (pursuer_dir + 1) % 4
         pursuer_delta = np.array([(-2, 0), (0, 2), (2, 0), (0, -2)][pursuer_dir])
-        pursuer_pos = _safe_move(self.pursuer_pos, pursuer_delta)
+        pursuer_pos = _safe_move(pursuer_pos, pursuer_delta)
 
         # Evader moves
         evader_delta = np.array([(-1, 0), (0, 1), (1, 0), (0, -1)][evader_action])
-        evader_pos = _safe_move(self.evader_pos, evader_delta)
+        evader_pos = _safe_move(evader_pos, evader_delta)
 
         # Check termination
         terminated: bool = np.linalg.norm(pursuer_pos - evader_pos) <= 1.5

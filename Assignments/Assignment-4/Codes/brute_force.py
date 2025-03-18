@@ -16,7 +16,7 @@ class BruteForceAgent:
 
     def train(self) -> None:
         gs = self.env.grid_size
-        self.payoff_table = np.full((gs, gs), np.nan)
+        self.payoff_table = np.full((gs, gs), np.inf)
         for ex, ey in np.ndindex(gs, gs):
             env = self.env.__class__(grid_size=gs)
             env.reset(options={"evader_pos": (ex, ey)})
@@ -31,20 +31,21 @@ class BruteForceAgent:
         queue = deque([(obs, 0)])
         visited = set()
         visited.add(obs)
+        payoffs = []
         while queue:
             (obs, payoff) = queue.popleft()
             if np.linalg.norm(np.array(obs[0:2]) - np.array(obs[2:4])) <= 1.5:
-                return payoff
+                payoffs.append(payoff)
             if payoff >= self.max_payoff:
                 continue
             for action in np.ndindex(2, 4):
-                obs, _, _, _, _ = env.step(action, simulate=True)
+                obs, _, _, _, _ = env.step(action, obs, simulate=True)
                 if obs not in visited:
                     visited.add(obs)
                     queue.append((obs, payoff + 1))
-        return np.inf
+        return min(payoffs)
 
     def _show_payoff_table(self):
         print("Payoff table:")
         for row in self.payoff_table:
-            print(" ".join(f"{x:3.0f}" if not np.isnan(x) else "  -" for x in row))
+            print(" ".join(f"{x:3.0f}" if x != np.inf else "  -" for x in row))
