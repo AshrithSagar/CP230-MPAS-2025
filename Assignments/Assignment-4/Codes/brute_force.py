@@ -45,8 +45,7 @@ class BruteForceAgent:
         """Computes the optimal number of steps to capture the evader."""
         obs = env._get_obs()
         queue = deque([(obs, 0)])
-        visited = set()
-        visited.add(obs)
+        visited = set([obs])
         payoffs = []
         while queue:
             (obs, payoff) = queue.popleft()
@@ -54,11 +53,15 @@ class BruteForceAgent:
                 payoffs.append(payoff)
             if payoff >= self.max_payoff:
                 continue
-            for action in np.ndindex(2, 4):
-                obs, _, _, _, _ = env.step(action, obs, simulate=True)
-                if obs not in visited:
-                    visited.add(obs)
-                    queue.append((obs, payoff + 1))
+            for pursuer_act in range(2):
+                for evader_act in range(4):
+                    action = (pursuer_act, evader_act)
+                    new_obs, _, terminated, truncated, _ = env.step(action, obs)
+                    if terminated:
+                        payoffs.append(payoff + 1)
+                    elif not truncated and new_obs not in visited:
+                        queue.append((new_obs, payoff + 1))
+                        visited.add(new_obs)
         return min(payoffs)
 
     def _show_payoff_table(self):

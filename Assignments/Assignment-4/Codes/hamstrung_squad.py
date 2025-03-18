@@ -97,16 +97,24 @@ class HamstrungSquadEnv(gym.Env):
         if pursuer_action == 1:  # Turn right
             pursuer_dir = (pursuer_dir + 1) % 4
         pursuer_delta = np.array([(-2, 0), (0, 2), (2, 0), (0, -2)][pursuer_dir])
+        pursuer_pos_check = pursuer_pos + pursuer_delta
         pursuer_pos = _safe_move(pursuer_pos, pursuer_delta)
 
         # Evader moves
         evader_delta = np.array([(-1, 0), (0, 1), (1, 0), (0, -1)][evader_action])
+        evader_pos_check = evader_pos + evader_delta
         evader_pos = _safe_move(evader_pos, evader_delta)
 
         # Check termination
         terminated: bool = np.linalg.norm(pursuer_pos - evader_pos) <= 1.5
+        truncated: bool = (  # Out of bounds
+            not (0 <= pursuer_pos_check[0] < self.grid_size)
+            or not (0 <= pursuer_pos_check[1] < self.grid_size)
+            or not (0 <= evader_pos_check[0] < self.grid_size)
+            or not (0 <= evader_pos_check[1] < self.grid_size)
+        )
         obs = self._get_obs(pursuer_pos, evader_pos, pursuer_dir, store=not simulate)
-        return obs, 0.0, terminated, terminated, {}
+        return obs, 0.0, terminated, truncated, {}
 
     def render(self) -> None:
         if self.render_mode == "ansi":
