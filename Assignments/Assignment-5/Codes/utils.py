@@ -68,19 +68,19 @@ class Scene:
                 body.velocity[1] = -body.velocity[1]
                 body.velocity[1] *= self.epsilon
 
-    def render(self) -> None:
+    def render(self, dynamic_axis: bool = True) -> None:
         def animate(_):
             self.update()
             for scatter, body in zip(self.scatters, self.bodies):
                 scatter.set_offsets(body.position)
 
-            # Dynamic axis limits
-            min_x = min(body.position[0] for body in self.bodies) - 1
-            max_x = max(body.position[0] for body in self.bodies) + 1
-            min_y = self.ground_y - 1
-            max_y = max(body.position[1] for body in self.bodies) + 1
-            self.ax.set_xlim(min_x, max_x)
-            self.ax.set_ylim(min_y, max_y)
+            if dynamic_axis:
+                min_x = min(body.position[0] for body in self.bodies) - 1
+                max_x = max(body.position[0] for body in self.bodies) + 1
+                min_y = self.ground_y - 1
+                max_y = max(body.position[1] for body in self.bodies) + 1
+                self.ax.set_xlim(min_x, max_x)
+                self.ax.set_ylim(min_y, max_y)
 
         self.ax.axhline(self.ground_y, color="black", linestyle="-", linewidth=1)
 

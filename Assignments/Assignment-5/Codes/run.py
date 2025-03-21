@@ -11,7 +11,7 @@ def main():
     field = AttractiveField(goal=(20, 0), k_p=0.1)
     scene = Scene(time_step=0.1, epsilon=1.0)
     scene.add_body(robot)
-    scene.render()
+    scene.render(dynamic_axis=False)
 
 
 if __name__ == "__main__":
