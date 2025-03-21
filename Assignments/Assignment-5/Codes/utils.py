@@ -14,6 +14,12 @@ import pymunk
 import pymunk.pygame_util
 
 Vec2 = Tuple[float, float]
+COLORS = {
+    "WHITE": (255, 255, 255),
+    "BLACK": (0, 0, 0),
+    "RED": (255, 0, 0),
+    "GREEN": (0, 255, 0),
+}
 
 
 class AttractiveField:
@@ -30,16 +36,19 @@ class AttractiveField:
         return tuple(-self.k_p * np.array(diff))
 
 
-class Body(ABC):
-    def __init__(self, mass: float, position: Vec2, velocity: Vec2):
-        self.mass = mass
+class Body(pymunk.Body, ABC):
+    def __init__(
+        self,
+        position: Vec2,
+        velocity: Vec2 = (0, 0),
+        mass: float = 0,
+        moment: float = pymunk.moment_for_circle(0, 0, 5),
+        body_type: int = pymunk.Body.DYNAMIC,
+    ):
+        super().__init__(mass, moment, body_type)
         self.position: Vec2 = position
         self.velocity: Vec2 = velocity
-        self.pymunk_body: pymunk.Body = None
-
-    def apply_force(self, force: Vec2) -> None:
-        if self.pymunk_body:
-            self.pymunk_body.apply_force_at_local_point(force)
+        self.shape: pymunk.Shape = None
 
     @abstractmethod
     def draw(self, screen: pygame.Surface) -> None:
@@ -47,75 +56,85 @@ class Body(ABC):
 
 
 class Obstacle(Body):
-    def __init__(self, mass: float, position: Vec2, velocity: Vec2):
-        super().__init__(mass, position, velocity)
+    def __init__(
+        self,
+        position: Vec2,
+        velocity: Vec2 = (0, 0),
+        mass: float = 0,
+        moment: float = 0,
+        body_type: int = pymunk.Body.STATIC,
+        radius: float = 15,
+    ):
+        super().__init__(position, velocity, mass, moment, body_type)
+        self.radius = radius
+        self.shape = pymunk.Circle(self, self.radius)
 
     def draw(self, screen: pygame.Surface) -> None:
-        center = (int(self.position[0]), int(self.position[1]))
-        pygame.draw.rect(screen, (255, 0, 0), (*center, 20, 20))
+        pygame.draw.circle(screen, COLORS["RED"], self.position, self.radius)
 
 
 class PointRobot(Body):
-    def __init__(self, mass: float, position: Vec2, velocity: Vec2, vmax: float):
-        super().__init__(mass, position, velocity)
+    def __init__(
+        self, position: Vec2, velocity: Vec2 = (0, 0), mass: float = 1, vmax: float = 10
+    ):
+        moment = pymunk.moment_for_circle(mass, 0, 5)
+        super().__init__(position, velocity, mass, moment)
         self.vmax = vmax  # Maximum horizontal velocity capability
+        self.shape = pymunk.Circle(self, 5)
+
+    def draw(self, screen: pygame.Surface) -> None:
+        pygame.draw.circle(screen, COLORS["GREEN"], self.position, 5)
 
     def update_velocity(self) -> None:
         speed = np.linalg.norm(self.velocity)
         if speed > self.vmax:
-            self.velocity = self.velocity / speed * self.vmax
-
-    def draw(self, screen: pygame.Surface) -> None:
-        pygame.draw.circle(screen, (255, 255, 255), self.position, 10)
+            self.velocity = tuple(np.array(self.velocity) / speed * self.vmax)
 
 
 class Scene:
     def __init__(
         self,
-        time_step: float = 0.1,
-        elasticity: float = 1.0,
         display_size: Union[Tuple[int, int], str] = "full",
+        elasticity: float = 1.0,
+        dt: float = 0.1,
+        steps: int = 10,
     ):
-        self.dt = time_step
-        self.elasticity = elasticity  # Coefficient of restitution
         self.size = display_size
+        self.elasticity = elasticity  # Coefficient of restitution
+        self.dt = dt  # Time step
+        self.steps = steps  # Number of steps per frame
         self.bodies: List[Body] = []
 
         self.space = pymunk.Space()
         self.space.gravity = (0, 9.8)
         self.ground_y = 590  # Ground level
-        self._create_ground()
-
-        self.screen = None
-        self.draw_options = None
+        self.ground = pymunk.Segment(
+            self.space.static_body, (0, self.ground_y), (1000, self.ground_y), 1
+        )
+        self.ground.elasticity = self.elasticity
+        self.space.add(self.ground)
 
         pygame.init()
         if self.size == "full":
             display_params = {"size": (0, 0), "flags": pygame.FULLSCREEN}
         elif isinstance(self.size, tuple):
             display_params = {"size": self.size, "flags": pygame.RESIZABLE}
-        self.screen = pygame.display.set_mode(**display_params)
-
-    def _create_ground(self):
-        ground = pymunk.Segment(
-            self.space.static_body, (-1000, self.ground_y), (1000, self.ground_y), 1
-        )
-        ground.elasticity = self.elasticity
-        self.space.add(ground)
+        self.screen: pygame.Surface = pygame.display.set_mode(**display_params)
+        self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
 
     def add_body(self, body: Body) -> None:
-        pymunk_body = pymunk.Body(body.mass, pymunk.moment_for_circle(body.mass, 0, 10))
-        pymunk_body.position = tuple(body.position)
-        pymunk_body.velocity = tuple(body.velocity)
-        shape = pymunk.Circle(pymunk_body, 10)
-        shape.elasticity = self.elasticity
-        self.space.add(pymunk_body, shape)
-        body.pymunk_body = pymunk_body
         self.bodies.append(body)
+        body.shape.elasticity = self.elasticity
+        self.space.add(body, body.shape)
+
+    def add_bodies(self, bodies: List[Body]) -> None:
+        for body in bodies:
+            self.add_body(body)
 
     def apply_field(self, field: AttractiveField, body: Body) -> None:
         force = field.get_force_field(body.position)
-        body.apply_force(force)
+        scaled_force = pymunk.Vec2d(*tuple(f * body.mass for f in force))
+        body.apply_force_at_local_point(scaled_force, (0, 0))
         if isinstance(body, PointRobot):
             body.update_velocity()
 
@@ -129,14 +148,14 @@ class Scene:
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     running = False
 
-            self.screen.fill((0, 0, 0))
+            self.screen.fill(COLORS["BLACK"])
             pygame.draw.line(
-                self.screen, (255, 255, 255), (0, self.ground_y), (800, self.ground_y)
+                self.screen, COLORS["WHITE"], (0, self.ground_y), (1000, self.ground_y)
             )
             for body in self.bodies:
-                body.position = body.pymunk_body.position
                 body.draw(self.screen)
-            self.space.step(self.dt)
+            for _ in range(self.steps):
+                self.space.step(self.dt / self.steps)
             pygame.display.flip()
             clock.tick(60)
         pygame.quit()
