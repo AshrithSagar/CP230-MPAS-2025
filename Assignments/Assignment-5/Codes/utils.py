@@ -5,15 +5,14 @@ Utility classes
 
 import os
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from typing import Union
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
-import numpy as np
 import pygame
 import pymunk
 import pymunk.pygame_util
+from pymunk import Vec2d
 
-Vec2 = Tuple[float, float]
 COLORS = {
     "WHITE": (255, 255, 255),
     "BLACK": (0, 0, 0),
@@ -23,31 +22,31 @@ COLORS = {
 
 
 class AttractiveField:
-    def __init__(self, goal: Vec2, k_p: float):
+    def __init__(self, goal: Vec2d, k_p: float):
         self.goal = goal
         self.k_p = k_p
 
-    def get_potential_field(self, coord: Vec2) -> float:
-        diff: Vec2 = np.array(coord) - np.array(self.goal)
-        return 0.5 * self.k_p * np.dot(diff, diff)
+    def get_potential_field(self, coord: Vec2d) -> float:
+        diff = coord - self.goal
+        return 0.5 * self.k_p * diff.dot(diff)
 
-    def get_force_field(self, coord: Vec2) -> Vec2:
-        diff: Vec2 = np.array(coord) - np.array(self.goal)
-        return tuple(-self.k_p * np.array(diff))
+    def get_force_field(self, coord: Vec2d) -> Vec2d:
+        diff = coord - self.goal
+        return -self.k_p * diff
 
 
 class Body(pymunk.Body, ABC):
     def __init__(
         self,
-        position: Vec2,
-        velocity: Vec2 = (0, 0),
+        position: Vec2d,
+        velocity: Vec2d = Vec2d.zero(),
         mass: float = 0,
         moment: float = pymunk.moment_for_circle(0, 0, 5),
         body_type: int = pymunk.Body.DYNAMIC,
     ):
         super().__init__(mass, moment, body_type)
-        self.position: Vec2 = position
-        self.velocity: Vec2 = velocity
+        self.position = position
+        self.velocity = velocity
         self.shape: pymunk.Shape = None
 
     @abstractmethod
@@ -58,8 +57,8 @@ class Body(pymunk.Body, ABC):
 class Obstacle(Body):
     def __init__(
         self,
-        position: Vec2,
-        velocity: Vec2 = (0, 0),
+        position: Vec2d,
+        velocity: Vec2d = Vec2d.zero(),
         mass: float = 0,
         moment: float = 0,
         body_type: int = pymunk.Body.STATIC,
@@ -70,31 +69,47 @@ class Obstacle(Body):
         self.shape = pymunk.Circle(self, self.radius)
 
     def draw(self, screen: pygame.Surface) -> None:
-        pygame.draw.circle(screen, COLORS["RED"], self.position, self.radius)
+        pygame.draw.circle(
+            screen,
+            COLORS["RED"],
+            (int(self.position.x), int(self.position.y)),
+            self.radius,
+        )
 
 
 class PointRobot(Body):
     def __init__(
-        self, position: Vec2, velocity: Vec2 = (0, 0), mass: float = 1, vmax: float = 10
+        self,
+        position: Vec2d,
+        velocity: Vec2d = Vec2d(0, 0),
+        mass: float = 1,
+        vmax: float = 10,
+        radius: float = 3,
     ):
-        moment = pymunk.moment_for_circle(mass, 0, 5)
+        self.radius = radius
+        moment = pymunk.moment_for_circle(mass, 0, self.radius)
         super().__init__(position, velocity, mass, moment)
         self.vmax = vmax  # Maximum horizontal velocity capability
-        self.shape = pymunk.Circle(self, 5)
+        self.shape = pymunk.Circle(self, self.radius)
 
     def draw(self, screen: pygame.Surface) -> None:
-        pygame.draw.circle(screen, COLORS["GREEN"], self.position, 5)
+        pygame.draw.circle(
+            screen,
+            COLORS["GREEN"],
+            (int(self.position.x), int(self.position.y)),
+            self.radius,
+        )
 
     def update_velocity(self) -> None:
-        speed = np.linalg.norm(self.velocity)
+        speed = self.velocity.length
         if speed > self.vmax:
-            self.velocity = tuple(np.array(self.velocity) / speed * self.vmax)
+            self.velocity = self.velocity.normalized() * self.vmax
 
 
 class Scene:
     def __init__(
         self,
-        display_size: Union[Tuple[int, int], str] = "full",
+        display_size: Union[tuple[int, int], str] = "full",
         elasticity: float = 1.0,
         dt: float = 0.1,
         steps: int = 10,
@@ -103,10 +118,10 @@ class Scene:
         self.elasticity = elasticity  # Coefficient of restitution
         self.dt = dt  # Time step
         self.steps = steps  # Number of steps per frame
-        self.bodies: List[Body] = []
+        self.bodies: list[Body] = []
 
         self.space = pymunk.Space()
-        self.space.gravity = (0, 9.8)
+        self.space.gravity = Vec2d(0, 9.8)
         self.ground_y = 590  # Ground level
         self.ground = pymunk.Segment(
             self.space.static_body, (0, self.ground_y), (1000, self.ground_y), 1
@@ -127,14 +142,13 @@ class Scene:
         body.shape.elasticity = self.elasticity
         self.space.add(body, body.shape)
 
-    def add_bodies(self, bodies: List[Body]) -> None:
+    def add_bodies(self, bodies: list[Body]) -> None:
         for body in bodies:
             self.add_body(body)
 
     def apply_field(self, field: AttractiveField, body: Body) -> None:
-        force = field.get_force_field(body.position)
-        scaled_force = pymunk.Vec2d(*tuple(f * body.mass for f in force))
-        body.apply_force_at_local_point(scaled_force, (0, 0))
+        force = body.mass * field.get_force_field(body.position)
+        body.apply_force_at_local_point(force, (0, 0))
         if isinstance(body, PointRobot):
             body.update_velocity()
 
