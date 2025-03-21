@@ -154,7 +154,7 @@ class Scene:
 
     def apply_field(self, field: AttractiveField, body: Body) -> None:
         force = body.mass * field.get_force_field(body.position)
-        body.apply_force_at_local_point(force, (0, 0))
+        body.apply_impulse_at_local_point(force, (0, 0))
         if isinstance(body, PointRobot):
             body.update_velocity()
 
