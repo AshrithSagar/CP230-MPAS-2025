@@ -7,11 +7,15 @@ from utils import AttractiveField, PointRobot, Scene
 
 
 def main():
-    robot = PointRobot(mass=1.0, position=(0, 5), velocity=(0, 0), vmax=1.0)
-    field = AttractiveField(goal=(20, 0), k_p=0.1)
-    scene = Scene(time_step=0.1, epsilon=1.0)
+    scene = Scene(time_step=0.1, elasticity=1.0, display_size=(800, 600))
+
+    robot = PointRobot(mass=1.0, position=(400, 300), velocity=(0, 0), vmax=10)
     scene.add_body(robot)
-    scene.render(dynamic_axis=False)
+
+    field = AttractiveField(goal=(200, 200), k_p=0)
+    scene.apply_field(field, robot)
+
+    scene.render()
 
 
 if __name__ == "__main__":
