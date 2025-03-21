@@ -5,7 +5,7 @@ Utility classes
 
 import os
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Optional, Union
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame
@@ -111,23 +111,16 @@ class Scene:
         self,
         display_size: Union[tuple[int, int], str] = "full",
         elasticity: float = 1.0,
+        ground_y: Optional[int] = None,
         dt: float = 0.1,
         steps: int = 10,
     ):
         self.size = display_size
         self.elasticity = elasticity  # Coefficient of restitution
+        self.ground_y = ground_y  # Ground level
         self.dt = dt  # Time step
         self.steps = steps  # Number of steps per frame
         self.bodies: list[Body] = []
-
-        self.space = pymunk.Space()
-        self.space.gravity = Vec2d(0, 9.8)
-        self.ground_y = 590  # Ground level
-        self.ground = pymunk.Segment(
-            self.space.static_body, (0, self.ground_y), (1000, self.ground_y), 1
-        )
-        self.ground.elasticity = self.elasticity
-        self.space.add(self.ground)
 
         pygame.init()
         if self.size == "full":
@@ -136,6 +129,19 @@ class Scene:
             display_params = {"size": self.size, "flags": pygame.RESIZABLE}
         self.screen: pygame.Surface = pygame.display.set_mode(**display_params)
         self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
+
+        self.space = pymunk.Space()
+        self.space.gravity = Vec2d(0, 9.8)
+        if self.ground_y is None:
+            self.ground_y = self.screen.get_height() - 10
+        self.ground = pymunk.Segment(
+            self.space.static_body,
+            (0, self.ground_y),
+            (self.screen.get_width(), self.ground_y),
+            1,
+        )
+        self.ground.elasticity = self.elasticity
+        self.space.add(self.ground)
 
     def add_body(self, body: Body) -> None:
         self.bodies.append(body)
@@ -164,7 +170,10 @@ class Scene:
 
             self.screen.fill(COLORS["BLACK"])
             pygame.draw.line(
-                self.screen, COLORS["WHITE"], (0, self.ground_y), (1000, self.ground_y)
+                self.screen,
+                COLORS["WHITE"],
+                (0, self.ground_y),
+                (self.screen.get_width(), self.ground_y),
             )
             for body in self.bodies:
                 body.draw(self.screen)

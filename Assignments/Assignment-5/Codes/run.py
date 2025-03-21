@@ -3,14 +3,18 @@ run.py
 Run the tasks
 """
 
-from utils import Obstacle, PointRobot, Scene
+from utils import AttractiveField, Obstacle, PointRobot, Scene
 
 
 def main():
-    scene = Scene(display_size=(800, 600), elasticity=1.0, dt=0.2, steps=10)
+    scene = Scene(display_size="full", elasticity=0.8, dt=0.2, steps=10)
+    gy = scene.ground_y
 
-    robot = PointRobot(position=(400, 300), velocity=(0, 0), mass=1, vmax=10)
-    obstacle = Obstacle(position=(200, 400))
+    robot = PointRobot(position=(100, gy - 450), velocity=(0, 0), mass=1, vmax=10)
+    obstacle = Obstacle(position=(400, gy - 10), radius=10)
+
+    field = AttractiveField(goal=(1000, gy), k_p=0.8)
+    scene.apply_field(field, robot)
 
     scene.add_bodies([robot, obstacle])
     scene.render()
