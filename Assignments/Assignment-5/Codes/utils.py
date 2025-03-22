@@ -70,7 +70,7 @@ class Obstacle(Body):
         mass: float = 0,
         moment: float = 0,
         body_type: int = pymunk.Body.STATIC,
-        radius: float = 15,
+        radius: float = 3,
     ):
         super().__init__(position, velocity, field, mass, moment, body_type)
         self.radius = radius
@@ -87,6 +87,33 @@ class Obstacle(Body):
         )
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
+
+
+class StaticObstacle(Obstacle):
+    def __init__(
+        self,
+        position: Vec2d,
+        field: Optional[PotentialField] = None,
+        radius: float = 3,
+    ):
+        super().__init__(
+            position, field=field, body_type=pymunk.Body.STATIC, radius=radius
+        )
+
+
+class MovingObstacle(Obstacle):
+    def __init__(
+        self,
+        position: Vec2d,
+        velocity: Vec2d = Vec2d.zero(),
+        field: Optional[PotentialField] = None,
+        mass: float = 1,
+        radius: float = 3,
+    ):
+        moment = pymunk.moment_for_circle(mass, 0, radius)
+        super().__init__(
+            position, velocity, field, mass, moment, pymunk.Body.KINEMATIC, radius
+        )
 
 
 class PointRobot(Body):
