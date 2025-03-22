@@ -18,6 +18,8 @@ COLORS = {
     "BLACK": (0, 0, 0),
     "RED": (255, 0, 0),
     "GREEN": (0, 255, 0),
+    "BLUE": (0, 0, 255),
+    "YELLOW": (255, 255, 0),
 }
 
 
@@ -49,12 +51,28 @@ class Obstacle(Body):
         moment: float = 0,
         body_type: int = pymunk.Body.STATIC,
         radius: float = 15,
+        d0: float = 0,
     ):
         super().__init__(position, velocity, mass, moment, body_type)
         self.radius = radius
+        self.d0 = d0
         self.shape = pymunk.Circle(self, self.radius)
 
     def draw(self, screen: pygame.Surface) -> None:
+        if self.d0 > 0:
+            surface = pygame.Surface(
+                (2 * int(self.d0), 2 * int(self.d0)), pygame.SRCALPHA
+            )
+            pygame.draw.circle(
+                surface,
+                (*COLORS["YELLOW"], 96),
+                (int(self.d0), int(self.d0)),
+                int(self.d0),
+            )
+            screen.blit(
+                surface,
+                (int(self.position.x - self.d0), int(self.position.y - self.d0)),
+            )
         pygame.draw.circle(
             screen,
             COLORS["RED"],
@@ -116,10 +134,10 @@ class AttractiveField(PotentialField):
 
 
 class RepulsiveField(PotentialField):
-    def __init__(self, obstacle: Obstacle, d0: float, k_r: float):
+    def __init__(self, obstacle: Obstacle, k_r: float, d0: float = None):
         self.obstacle = obstacle
-        self.d0 = d0  # Virtual periphery radius
         self.k_r = k_r
+        self.d0 = d0 or obstacle.d0  # Virtual periphery radius
 
     def get_potential_field(self, coord: Vec2d) -> float:
         diff = coord - self.obstacle.position
@@ -208,9 +226,20 @@ class Scene:
                 COLORS["WHITE"],
                 (0, self.ground_y),
                 (self.screen.get_width(), self.ground_y),
+                width=1,
             )
             for body in self.bodies:
                 body.draw(self.screen)
+            pygame.draw.rect(
+                self.screen,
+                COLORS["BLACK"],
+                (
+                    0,
+                    self.ground_y + 1,
+                    self.screen.get_width(),
+                    self.screen.get_height() - self.ground_y,
+                ),
+            )
             for _ in range(self.steps):
                 self.space.step(self.dt / self.steps)
             pygame.display.flip()
