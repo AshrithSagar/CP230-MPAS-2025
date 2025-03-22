@@ -24,7 +24,7 @@ def main():
     field_1 = RepulsiveField(k_r=10, d0=50, body=obstacle_1)
     obstacle_1.field = field_1
 
-    obstacle_2 = MovingObstacle(position=(800, gy - 3), velocity=(-2, 0))
+    obstacle_2 = MovingObstacle(position=(600, gy - 3), velocity=(-2, 0))
 
     scene.add_bodies([robot, obstacle_1, obstacle_2])
     scene.add_fields([field_0])
@@ -34,7 +34,7 @@ def main():
 
     def toggle_field_2():
         crossed_1 = obstacle_1.position.x + field_1.d0 + field_2.d0 < robot.position.x
-        crossed_2 = obstacle_2.position.x + field_2.d0 < robot.position.x
+        crossed_2 = obstacle_2.position.x - field_2.d0 < robot.position.x
         if crossed_1 and not crossed_2:
             if robot.field is None:
                 robot.field = field_2
@@ -45,6 +45,7 @@ def main():
                 robot.field = None
                 scene.detach_effects(robot, [field_2])
                 scene.detach_effects(obstacle_2, [field_2])
+                robot._set_position((obstacle_2.position.x, robot.position.y))
 
     scene.add_pipeline(toggle_field_2)
 
