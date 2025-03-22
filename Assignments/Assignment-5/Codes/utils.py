@@ -21,20 +21,6 @@ COLORS = {
 }
 
 
-class AttractiveField:
-    def __init__(self, goal: Vec2d, k_p: float):
-        self.goal = goal
-        self.k_p = k_p
-
-    def get_potential_field(self, coord: Vec2d) -> float:
-        diff = coord - self.goal
-        return 0.5 * self.k_p * diff.dot(diff)
-
-    def get_force_field(self, coord: Vec2d) -> Vec2d:
-        diff = coord - self.goal
-        return -self.k_p * diff
-
-
 class Body(pymunk.Body, ABC):
     def __init__(
         self,
@@ -101,9 +87,54 @@ class PointRobot(Body):
         )
 
     def update_velocity(self) -> None:
-        speed = self.velocity.length
-        if speed > self.vmax:
+        if self.velocity.x > self.vmax:
             self.velocity = self.velocity.normalized() * self.vmax
+
+
+class PotentialField(ABC):
+    @abstractmethod
+    def get_potential_field(self, coord: Vec2d) -> float:
+        pass
+
+    @abstractmethod
+    def get_force_field(self, coord: Vec2d) -> Vec2d:
+        pass
+
+
+class AttractiveField(PotentialField):
+    def __init__(self, goal: Vec2d, k_p: float):
+        self.goal = goal
+        self.k_p = k_p
+
+    def get_potential_field(self, coord: Vec2d) -> float:
+        diff = coord - self.goal
+        return 0.5 * self.k_p * diff.dot(diff)
+
+    def get_force_field(self, coord: Vec2d) -> Vec2d:
+        diff = coord - self.goal
+        return -self.k_p * diff
+
+
+class RepulsiveField(PotentialField):
+    def __init__(self, obstacle: Obstacle, d0: float, k_r: float):
+        self.obstacle = obstacle
+        self.d0 = d0  # Virtual periphery radius
+        self.k_r = k_r
+
+    def get_potential_field(self, coord: Vec2d) -> float:
+        diff = coord - self.obstacle.position
+        d = diff.length
+        if d >= self.d0 or d == 0:
+            return 0.0
+        return 0.5 * self.k_r * (1 / d - 1 / self.d0) ** 2
+
+    def get_force_field(self, coord: Vec2d) -> Vec2d:
+        diff = coord - self.obstacle.position
+        d = diff.length
+        if d >= self.d0 or d == 0:
+            return Vec2d.zero()
+        force_mag = self.k_r * (1 / d - 1 / self.d0) / (d**2)
+        return force_mag * diff.normalized()
 
 
 class Scene:
@@ -121,6 +152,7 @@ class Scene:
         self.dt = dt  # Time step
         self.steps = steps  # Number of steps per frame
         self.bodies: list[Body] = []
+        self.fields: dict[Body, list[PotentialField]] = {}
 
         pygame.init()
         if self.size == "full":
@@ -143,20 +175,21 @@ class Scene:
         self.ground.elasticity = self.elasticity
         self.space.add(self.ground)
 
-    def add_body(self, body: Body) -> None:
-        self.bodies.append(body)
-        body.shape.elasticity = self.elasticity
-        self.space.add(body, body.shape)
-
     def add_bodies(self, bodies: list[Body]) -> None:
         for body in bodies:
-            self.add_body(body)
+            self.bodies.append(body)
+            body.shape.elasticity = self.elasticity
+            self.space.add(body, body.shape)
 
-    def apply_field(self, field: AttractiveField, body: Body) -> None:
-        force = body.mass * field.get_force_field(body.position)
-        body.apply_impulse_at_local_point(force, (0, 0))
-        if isinstance(body, PointRobot):
-            body.update_velocity()
+    def attach_fields(self, body: Body, fields: list[PotentialField]) -> None:
+        self.fields[body] = fields
+
+    def apply_fields(self) -> None:
+        for body, fields in self.fields.items():
+            total_force = Vec2d(0, 0)
+            for field in fields:
+                total_force += field.get_force_field(body.position) * body.mass
+            body.apply_impulse_at_local_point(total_force, (0, 0))
 
     def render(self) -> None:
         running = True
@@ -168,6 +201,7 @@ class Scene:
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     running = False
 
+            self.apply_fields()
             self.screen.fill(COLORS["BLACK"])
             pygame.draw.line(
                 self.screen,
