@@ -23,16 +23,14 @@ The robot is built for a maximum horizontal speed capability of $v_{\max}$.
 ## Task 2
 
 Consider a static obstacle with a virtual periphery.
-A repulsive field should act on the robot when it
-breaches the periphery.
+A repulsive field should act on the robot when it breaches the periphery.
 Choose the obstacle geometry wisely, as the robot may get trapped in a local minima.
 
 ## Task 3
 
 Consider a point-sized moving obstacle, moving head-on towards the robot.
 Equip the robot with a virtual periphery to detect the collision threat from the moving obstacle.
-Design the repulsive field for the robot to avoid
-collision.
+Design the repulsive field for the robot to avoid collision.
 
 ## Task 4
 

@@ -208,7 +208,7 @@ class Scene:
         self.space = pymunk.Space()
         self.space.gravity = Vec2d(0, 9.8)
         if self.ground_y is None:
-            self.ground_y = self.screen.get_height() - 10
+            self.ground_y = self.screen.get_height() - 50
         self.ground = pymunk.Segment(
             self.space.static_body,
             (0, self.ground_y),
