@@ -5,7 +5,7 @@ Utility classes
 
 import os
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame
@@ -150,10 +150,10 @@ class PointRobot(Body):
 
 
 class AttractiveField(PotentialField):
-    def __init__(self, goal: Vec2d, k_p: float):
+    def __init__(self, goal: Union[Tuple[float, float], Vec2d], k_p: float):
         self.goal = Vec2d(*goal)
         self.k_p = k_p
-        self.draw_below = False
+        self.draw_below: bool = False
 
     def draw(self, screen: pygame.Surface) -> None:
         pygame.draw.circle(
@@ -170,11 +170,11 @@ class AttractiveField(PotentialField):
 
 
 class RepulsiveField(PotentialField):
-    def __init__(self, k_r: float, d0: float, obstacle: Obstacle = None):
+    def __init__(self, k_r: float, d0: float, body: Optional[Body] = None):
         self.k_r = k_r
         self.d0 = d0  # Virtual periphery radius
-        self.obstacle = obstacle
-        self.draw_below = True
+        self.body = body
+        self.draw_below: bool = True
 
     def draw(self, screen: pygame.Surface) -> None:
         surface = pygame.Surface((2 * int(self.d0), 2 * int(self.d0)), pygame.SRCALPHA)
@@ -185,20 +185,20 @@ class RepulsiveField(PotentialField):
             int(self.d0),
         )
         dest = (
-            int(self.obstacle.position.x - self.d0),
-            int(self.obstacle.position.y - self.d0),
+            int(self.body.position.x - self.d0),
+            int(self.body.position.y - self.d0),
         )
         screen.blit(surface, dest)
 
     def get_potential_field(self, coord: Vec2d) -> float:
-        diff = coord - self.obstacle.position
+        diff = coord - self.body.position
         d = diff.length
         if d >= self.d0 or d == 0:
             return 0.0
         return 0.5 * self.k_r * (1 / d - 1 / self.d0) ** 2
 
     def get_force_field(self, coord: Vec2d) -> Vec2d:
-        diff = coord - self.obstacle.position
+        diff = coord - self.body.position
         d = diff.length
         if d >= self.d0 or d == 0:
             return Vec2d.zero()
@@ -209,7 +209,7 @@ class RepulsiveField(PotentialField):
 class Scene:
     def __init__(
         self,
-        display_size: Union[tuple[int, int], str] = "full",
+        display_size: Union[Tuple[int, int], str] = "full",
         elasticity: float = 1.0,
         ground_y: Optional[int] = None,
         dt: float = 0.1,
@@ -220,14 +220,15 @@ class Scene:
         self.ground_y = ground_y  # Ground level
         self.dt = dt  # Time step
         self.steps = steps  # Number of steps per frame
-        self.bodies: list[Body] = []
-        self.fields: list[PotentialField] = []
-        self.effects: dict[Body, list[PotentialField]] = {}
+        self.bodies: List[Body] = []
+        self.fields: List[PotentialField] = []
+        self.effects: dict[Body, List[PotentialField]] = {}
+        self.pipeline: List[Callable] = []
 
         pygame.init()
         if self.size == "full":
             display_params = {"size": (0, 0), "flags": pygame.FULLSCREEN}
-        elif isinstance(self.size, tuple):
+        elif isinstance(self.size, Tuple):
             display_params = {"size": self.size, "flags": pygame.RESIZABLE}
         self.screen: pygame.Surface = pygame.display.set_mode(**display_params)
         self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
@@ -245,18 +246,23 @@ class Scene:
         self.ground.elasticity = self.elasticity
         self.space.add(self.ground)
 
-    def add_bodies(self, bodies: list[Body]) -> None:
+    def add_bodies(self, bodies: List[Body]) -> None:
         for body in bodies:
             self.bodies.append(body)
             body.shape.elasticity = self.elasticity
             self.space.add(body, body.shape)
 
-    def add_fields(self, fields: list[PotentialField]) -> None:
+    def add_fields(self, fields: List[PotentialField]) -> None:
         for field in fields:
             self.fields.append(field)
 
-    def attach_effects(self, body: Body, fields: list[PotentialField]) -> None:
+    def attach_effects(self, body: Body, fields: List[PotentialField]) -> None:
         self.effects[body] = fields
+
+    def detach_effects(self, body: Body, fields: List[PotentialField]) -> None:
+        for field in fields:
+            if field in self.effects[body]:
+                self.effects[body].remove(field)
 
     def apply_effects(self) -> None:
         for body, fields in self.effects.items():
@@ -264,6 +270,9 @@ class Scene:
             for field in fields:
                 total_force += field.get_force_field(body.position) * body.mass
             body.apply_impulse_at_local_point(total_force, (0, 0))
+
+    def add_pipeline(self, func: Callable) -> None:
+        self.pipeline.append(func)
 
     def render(self) -> None:
         running = True
@@ -275,6 +284,8 @@ class Scene:
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     running = False
 
+            for func in self.pipeline:
+                func()
             self.apply_effects()
             self.screen.fill(COLORS["BLACK"])
             pygame.draw.line(
