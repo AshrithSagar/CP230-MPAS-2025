@@ -20,7 +20,24 @@ COLORS = {
     "GREEN": (0, 255, 0),
     "BLUE": (0, 0, 255),
     "YELLOW": (255, 255, 0),
+    "PURPLE": (255, 0, 255),
 }
+
+
+class PotentialField(ABC):
+    draw_below: bool
+
+    @abstractmethod
+    def draw(self, screen: pygame.Surface) -> None:
+        pass
+
+    @abstractmethod
+    def get_potential_field(self, coord: Vec2d) -> float:
+        pass
+
+    @abstractmethod
+    def get_force_field(self, coord: Vec2d) -> Vec2d:
+        pass
 
 
 class Body(pymunk.Body, ABC):
@@ -28,6 +45,7 @@ class Body(pymunk.Body, ABC):
         self,
         position: Vec2d,
         velocity: Vec2d = Vec2d.zero(),
+        field: Optional[PotentialField] = None,
         mass: float = 0,
         moment: float = pymunk.moment_for_circle(0, 0, 5),
         body_type: int = pymunk.Body.DYNAMIC,
@@ -35,6 +53,7 @@ class Body(pymunk.Body, ABC):
         super().__init__(mass, moment, body_type)
         self.position = position
         self.velocity = velocity
+        self.field = field
         self.shape: pymunk.Shape = None
 
     @abstractmethod
@@ -47,38 +66,27 @@ class Obstacle(Body):
         self,
         position: Vec2d,
         velocity: Vec2d = Vec2d.zero(),
+        field: Optional[PotentialField] = None,
         mass: float = 0,
         moment: float = 0,
         body_type: int = pymunk.Body.STATIC,
         radius: float = 15,
-        d0: float = 0,
     ):
-        super().__init__(position, velocity, mass, moment, body_type)
+        super().__init__(position, velocity, field, mass, moment, body_type)
         self.radius = radius
-        self.d0 = d0
         self.shape = pymunk.Circle(self, self.radius)
 
     def draw(self, screen: pygame.Surface) -> None:
-        if self.d0 > 0:
-            surface = pygame.Surface(
-                (2 * int(self.d0), 2 * int(self.d0)), pygame.SRCALPHA
-            )
-            pygame.draw.circle(
-                surface,
-                (*COLORS["YELLOW"], 96),
-                (int(self.d0), int(self.d0)),
-                int(self.d0),
-            )
-            screen.blit(
-                surface,
-                (int(self.position.x - self.d0), int(self.position.y - self.d0)),
-            )
+        if self.field is not None and self.field.draw_below:
+            self.field.draw(screen)
         pygame.draw.circle(
             screen,
             COLORS["RED"],
             (int(self.position.x), int(self.position.y)),
             self.radius,
         )
+        if self.field is not None and not self.field.draw_below:
+            self.field.draw(screen)
 
 
 class PointRobot(Body):
@@ -86,43 +94,44 @@ class PointRobot(Body):
         self,
         position: Vec2d,
         velocity: Vec2d = Vec2d(0, 0),
+        field: Optional[PotentialField] = None,
         mass: float = 1,
         vmax: float = 10,
         radius: float = 3,
     ):
         self.radius = radius
         moment = pymunk.moment_for_circle(mass, 0, self.radius)
-        super().__init__(position, velocity, mass, moment)
+        super().__init__(position, velocity, field, mass, moment)
         self.vmax = vmax  # Maximum horizontal velocity capability
         self.shape = pymunk.Circle(self, self.radius)
 
     def draw(self, screen: pygame.Surface) -> None:
+        if self.field is not None and self.field.draw_below:
+            self.field.draw(screen)
         pygame.draw.circle(
             screen,
             COLORS["GREEN"],
             (int(self.position.x), int(self.position.y)),
             self.radius,
         )
+        if self.field is not None and not self.field.draw_below:
+            self.field.draw(screen)
 
     def update_velocity(self) -> None:
         if self.velocity.x > self.vmax:
             self.velocity = self.velocity.normalized() * self.vmax
 
 
-class PotentialField(ABC):
-    @abstractmethod
-    def get_potential_field(self, coord: Vec2d) -> float:
-        pass
-
-    @abstractmethod
-    def get_force_field(self, coord: Vec2d) -> Vec2d:
-        pass
-
-
 class AttractiveField(PotentialField):
     def __init__(self, goal: Vec2d, k_p: float):
-        self.goal = goal
+        self.goal = Vec2d(*goal)
         self.k_p = k_p
+        self.draw_below = False
+
+    def draw(self, screen: pygame.Surface) -> None:
+        pygame.draw.circle(
+            screen, COLORS["PURPLE"], (int(self.goal.x), int(self.goal.y)), 3
+        )
 
     def get_potential_field(self, coord: Vec2d) -> float:
         diff = coord - self.goal
@@ -134,10 +143,25 @@ class AttractiveField(PotentialField):
 
 
 class RepulsiveField(PotentialField):
-    def __init__(self, obstacle: Obstacle, k_r: float, d0: float = None):
-        self.obstacle = obstacle
+    def __init__(self, k_r: float, d0: float, obstacle: Obstacle = None):
         self.k_r = k_r
-        self.d0 = d0 or obstacle.d0  # Virtual periphery radius
+        self.d0 = d0  # Virtual periphery radius
+        self.obstacle = obstacle
+        self.draw_below = True
+
+    def draw(self, screen: pygame.Surface) -> None:
+        surface = pygame.Surface((2 * int(self.d0), 2 * int(self.d0)), pygame.SRCALPHA)
+        pygame.draw.circle(
+            surface,
+            (*COLORS["YELLOW"], 96),
+            (int(self.d0), int(self.d0)),
+            int(self.d0),
+        )
+        dest = (
+            int(self.obstacle.position.x - self.d0),
+            int(self.obstacle.position.y - self.d0),
+        )
+        screen.blit(surface, dest)
 
     def get_potential_field(self, coord: Vec2d) -> float:
         diff = coord - self.obstacle.position
@@ -170,7 +194,8 @@ class Scene:
         self.dt = dt  # Time step
         self.steps = steps  # Number of steps per frame
         self.bodies: list[Body] = []
-        self.fields: dict[Body, list[PotentialField]] = {}
+        self.fields: list[PotentialField] = []
+        self.effects: dict[Body, list[PotentialField]] = {}
 
         pygame.init()
         if self.size == "full":
@@ -199,11 +224,15 @@ class Scene:
             body.shape.elasticity = self.elasticity
             self.space.add(body, body.shape)
 
-    def attach_fields(self, body: Body, fields: list[PotentialField]) -> None:
-        self.fields[body] = fields
+    def add_fields(self, fields: list[PotentialField]) -> None:
+        for field in fields:
+            self.fields.append(field)
 
-    def apply_fields(self) -> None:
-        for body, fields in self.fields.items():
+    def attach_effects(self, body: Body, fields: list[PotentialField]) -> None:
+        self.effects[body] = fields
+
+    def apply_effects(self) -> None:
+        for body, fields in self.effects.items():
             total_force = Vec2d(0, 0)
             for field in fields:
                 total_force += field.get_force_field(body.position) * body.mass
@@ -219,7 +248,7 @@ class Scene:
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     running = False
 
-            self.apply_fields()
+            self.apply_effects()
             self.screen.fill(COLORS["BLACK"])
             pygame.draw.line(
                 self.screen,
@@ -228,8 +257,14 @@ class Scene:
                 (self.screen.get_width(), self.ground_y),
                 width=1,
             )
+            for field in self.fields:
+                if field.draw_below:
+                    field.draw(self.screen)
             for body in self.bodies:
                 body.draw(self.screen)
+            for field in self.fields:
+                if not field.draw_below:
+                    field.draw(self.screen)
             pygame.draw.rect(
                 self.screen,
                 COLORS["BLACK"],
