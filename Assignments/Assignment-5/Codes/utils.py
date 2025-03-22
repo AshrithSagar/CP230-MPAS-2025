@@ -3,6 +3,7 @@ utils.py
 Utility classes
 """
 
+import math
 import os
 from abc import ABC, abstractmethod
 from typing import Callable, List, Optional, Tuple, Union
@@ -120,7 +121,7 @@ class PointRobot(Body):
     def __init__(
         self,
         position: Vec2d,
-        velocity: Vec2d = Vec2d(0, 0),
+        velocity: Vec2d = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
         vmax: float = 10,
@@ -193,16 +194,18 @@ class RepulsiveField(PotentialField):
     def get_potential_field(self, coord: Vec2d) -> float:
         diff = coord - self.body.position
         d = diff.length
-        if d >= self.d0 or d == 0:
+        if d >= self.d0 or d <= 1e-6:
             return 0.0
         return 0.5 * self.k_r * (1 / d - 1 / self.d0) ** 2
 
     def get_force_field(self, coord: Vec2d) -> Vec2d:
         diff = coord - self.body.position
         d = diff.length
-        if d >= self.d0 or d == 0:
+        if d >= self.d0 or d <= 1e-6:
             return Vec2d.zero()
         force_mag = self.k_r * (1 / d - 1 / self.d0) / (d**2)
+        if math.isnan(force_mag) or math.isnan(diff.length):
+            return Vec2d.zero()
         return force_mag * diff.normalized()
 
 
@@ -266,10 +269,13 @@ class Scene:
 
     def apply_effects(self) -> None:
         for body, fields in self.effects.items():
-            total_force = Vec2d(0, 0)
+            total_force = Vec2d.zero()
             for field in fields:
-                total_force += field.get_force_field(body.position) * body.mass
-            body.apply_impulse_at_local_point(total_force, (0, 0))
+                force = field.get_force_field(body.position)
+                if math.isfinite(force.length):
+                    total_force += force * body.mass
+            if math.isfinite(total_force.length):
+                body.apply_impulse_at_local_point(total_force, (0, 0))
 
     def add_pipeline(self, func: Callable) -> None:
         self.pipeline.append(func)

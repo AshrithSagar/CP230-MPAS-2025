@@ -39,10 +39,12 @@ def main():
             if robot.field is None:
                 robot.field = field_2
                 scene.attach_effects(robot, [field_2])
+                scene.attach_effects(obstacle_2, [field_2])
         else:
             if robot.field is not None:
                 robot.field = None
                 scene.detach_effects(robot, [field_2])
+                scene.detach_effects(obstacle_2, [field_2])
 
     scene.add_pipeline(toggle_field_2)
 
