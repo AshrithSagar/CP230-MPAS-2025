@@ -10,6 +10,7 @@ from utils import (
     RepulsiveField,
     Scene,
     StaticObstacle,
+    Tunnel,
 )
 
 
@@ -24,12 +25,7 @@ def main():
     field_1 = RepulsiveField(k_r=10, d0=50, body=obstacle_1)
     obstacle_1.field = field_1
 
-    obstacle_2 = MovingObstacle(position=(600, gy - 3), velocity=(-2, 0))
-
-    scene.add_bodies([robot, obstacle_1, obstacle_2])
-    scene.add_fields([field_0])
-    scene.attach_effects(robot, [field_0, field_1])
-
+    obstacle_2 = MovingObstacle(position=(600, gy - 3), velocity=(-5, 0))
     field_2 = RepulsiveField(k_r=10, d0=50, body=robot)
 
     def toggle_field_2():
@@ -47,7 +43,12 @@ def main():
                 scene.detach_effects(obstacle_2, [field_2])
                 robot._set_position((obstacle_2.position.x, robot.position.y))
 
-    scene.add_pipeline(toggle_field_2)
+    tunnel = Tunnel(position=(800, gy - 150), dimensions=(250, 100))
+
+    scene.add_bodies([robot, obstacle_1, obstacle_2, tunnel])
+    scene.add_fields([field_0])
+    scene.attach_effects(robot, [field_0, field_1])
+    scene.add_pipelines([toggle_field_2])
 
     scene.render()
 

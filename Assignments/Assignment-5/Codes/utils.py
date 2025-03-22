@@ -6,6 +6,7 @@ Utility classes
 import math
 import os
 from abc import ABC, abstractmethod
+from enum import IntEnum
 from typing import Callable, List, Optional, Tuple, Union
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
@@ -14,6 +15,7 @@ import pymunk
 import pymunk.pygame_util
 from pymunk import Vec2d
 
+Vec2 = Tuple[float, float]
 COLORS = {
     "WHITE": (255, 255, 255),
     "BLACK": (0, 0, 0),
@@ -44,16 +46,16 @@ class PotentialField(ABC):
 class Body(pymunk.Body, ABC):
     def __init__(
         self,
-        position: Vec2d,
-        velocity: Vec2d = Vec2d.zero(),
+        position: Union[Vec2, Vec2d],
+        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 0,
         moment: float = pymunk.moment_for_circle(0, 0, 5),
         body_type: int = pymunk.Body.DYNAMIC,
     ):
         super().__init__(mass, moment, body_type)
-        self.position = position
-        self.velocity = velocity
+        self.position = Vec2d(*position)
+        self.velocity = Vec2d(*velocity)
         self.field = field
         self.shape: pymunk.Shape = None
 
@@ -65,8 +67,8 @@ class Body(pymunk.Body, ABC):
 class Obstacle(Body):
     def __init__(
         self,
-        position: Vec2d,
-        velocity: Vec2d = Vec2d.zero(),
+        position: Union[Vec2, Vec2d],
+        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 0,
         moment: float = 0,
@@ -93,7 +95,7 @@ class Obstacle(Body):
 class StaticObstacle(Obstacle):
     def __init__(
         self,
-        position: Vec2d,
+        position: Union[Vec2, Vec2d],
         field: Optional[PotentialField] = None,
         radius: float = 3,
     ):
@@ -105,8 +107,8 @@ class StaticObstacle(Obstacle):
 class MovingObstacle(Obstacle):
     def __init__(
         self,
-        position: Vec2d,
-        velocity: Vec2d = Vec2d.zero(),
+        position: Union[Vec2, Vec2d],
+        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
         radius: float = 3,
@@ -115,6 +117,43 @@ class MovingObstacle(Obstacle):
         super().__init__(
             position, velocity, field, mass, moment, pymunk.Body.KINEMATIC, radius
         )
+
+
+class Tunnel(Body):
+    def __init__(
+        self,
+        position: Union[Vec2, Vec2d],
+        dimensions: Vec2,
+        orientation: Union[int, "Tunnel.Orientation"] = 0,
+        field: Optional[PotentialField] = None,
+    ):
+        moment = pymunk.moment_for_box(0, dimensions)
+        super().__init__(
+            position, field=field, moment=moment, body_type=pymunk.Body.STATIC
+        )
+        self.width, self.height = dimensions
+        self.orientation = self.Orientation(orientation)
+        self.shape = pymunk.Poly.create_box(self, dimensions)
+
+    class Orientation(IntEnum):
+        HORIZONTAL = 0
+        VERTICAL = 1
+
+    def draw(self, screen: pygame.Surface) -> None:
+        if self.field is not None and self.field.draw_below:
+            self.field.draw(screen)
+        pygame.draw.rect(
+            screen,
+            COLORS["BLUE"],
+            (
+                int(self.position.x - self.width / 2),
+                int(self.position.y - self.height / 2),
+                self.width,
+                self.height,
+            ),
+        )
+        if self.field is not None and not self.field.draw_below:
+            self.field.draw(screen)
 
 
 class PointRobot(Body):
@@ -151,7 +190,7 @@ class PointRobot(Body):
 
 
 class AttractiveField(PotentialField):
-    def __init__(self, goal: Union[Tuple[float, float], Vec2d], k_p: float):
+    def __init__(self, goal: Union[Vec2, Vec2d], k_p: float):
         self.goal = Vec2d(*goal)
         self.k_p = k_p
         self.draw_below: bool = False
@@ -256,8 +295,7 @@ class Scene:
             self.space.add(body, body.shape)
 
     def add_fields(self, fields: List[PotentialField]) -> None:
-        for field in fields:
-            self.fields.append(field)
+        self.fields.extend(fields)
 
     def attach_effects(self, body: Body, fields: List[PotentialField]) -> None:
         self.effects[body] = fields
@@ -277,8 +315,8 @@ class Scene:
             if math.isfinite(total_force.length):
                 body.apply_impulse_at_local_point(total_force, (0, 0))
 
-    def add_pipeline(self, func: Callable) -> None:
-        self.pipeline.append(func)
+    def add_pipelines(self, funcs: List[Callable]) -> None:
+        self.pipeline.extend(funcs)
 
     def render(self) -> None:
         running = True
