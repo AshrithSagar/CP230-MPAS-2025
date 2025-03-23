@@ -6,7 +6,7 @@ Utility classes
 import math
 import os
 from abc import ABC, abstractmethod
-from enum import IntEnum
+from enum import Enum, EnumMeta, IntEnum
 from typing import Callable, List, Optional, Tuple, Union
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
@@ -16,15 +16,24 @@ import pymunk.pygame_util
 from pymunk import Vec2d
 
 Vec2 = Tuple[float, float]
-COLORS = {
-    "WHITE": (255, 255, 255),
-    "BLACK": (0, 0, 0),
-    "RED": (255, 0, 0),
-    "GREEN": (0, 255, 0),
-    "BLUE": (0, 0, 255),
-    "YELLOW": (255, 255, 0),
-    "PURPLE": (255, 0, 255),
-}
+
+
+class DirectValueMeta(EnumMeta):
+    def __getattribute__(cls, name):
+        value = super().__getattribute__(name)
+        if isinstance(value, cls):
+            value = value.value
+        return value
+
+
+class Colors(Enum, metaclass=DirectValueMeta):
+    WHITE = (255, 255, 255)
+    BLACK = (0, 0, 0)
+    RED = (255, 0, 0)
+    GREEN = (0, 255, 0)
+    BLUE = (0, 0, 255)
+    YELLOW = (255, 255, 0)
+    PURPLE = (255, 0, 255)
 
 
 class PotentialField(ABC):
@@ -85,9 +94,7 @@ class Goal(Body):
     def draw(self, screen: pygame.Surface) -> None:
         if self.field is not None and self.field.draw_below:
             self.field.draw(screen)
-        pygame.draw.circle(
-            screen, COLORS["PURPLE"], self.position.int_tuple, self.radius
-        )
+        pygame.draw.circle(screen, Colors.PURPLE, self.position.int_tuple, self.radius)
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
 
@@ -110,7 +117,7 @@ class Obstacle(Body):
     def draw(self, screen: pygame.Surface) -> None:
         if self.field is not None and self.field.draw_below:
             self.field.draw(screen)
-        pygame.draw.circle(screen, COLORS["RED"], self.position.int_tuple, self.radius)
+        pygame.draw.circle(screen, Colors.RED, self.position.int_tuple, self.radius)
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
 
@@ -176,7 +183,7 @@ class Tunnel(Body):
         for segment in self.segments:
             start_pos = Vec2d(*(self.position + segment.a)).int_tuple
             end_pos = Vec2d(*(self.position + segment.b)).int_tuple
-            pygame.draw.line(screen, COLORS["RED"], start_pos, end_pos, self.thickness)
+            pygame.draw.line(screen, Colors.RED, start_pos, end_pos, self.thickness)
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
 
@@ -207,9 +214,7 @@ class PointRobot(Body):
     def draw(self, screen: pygame.Surface) -> None:
         if self.field is not None and self.field.draw_below:
             self.field.draw(screen)
-        pygame.draw.circle(
-            screen, COLORS["BLACK"], self.position.int_tuple, self.radius
-        )
+        pygame.draw.circle(screen, Colors.BLACK, self.position.int_tuple, self.radius)
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
 
@@ -246,7 +251,7 @@ class RepulsiveField(PotentialField):
     def draw(self, screen: pygame.Surface) -> None:
         d0v = self.d0 * Vec2d.ones()
         surface = pygame.Surface((2 * d0v).int_tuple, pygame.SRCALPHA)
-        pygame.draw.circle(surface, (*COLORS["YELLOW"], 96), d0v.int_tuple, self.d0)
+        pygame.draw.circle(surface, (*Colors.YELLOW, 96), d0v.int_tuple, self.d0)
         screen.blit(surface, (self.body.position - d0v).int_tuple)
 
     def get_potential_field(self, coord: Vec2d) -> float:
@@ -276,7 +281,7 @@ class TunnelField(PotentialField):
     def draw(self, screen: pygame.Surface) -> None:
         size = self.body.dimensions.int_tuple
         surface = pygame.Surface(size, pygame.SRCALPHA)
-        pygame.draw.rect(surface, (*COLORS["YELLOW"], 96), (0, 0, *size))
+        pygame.draw.rect(surface, (*Colors.YELLOW, 96), (0, 0, *size))
         dest = Vec2d(*(self.body.position - self.body.dimensions / 2)).int_tuple
         screen.blit(surface, dest)
 
@@ -380,10 +385,10 @@ class Scene:
             for func in self.pipeline:
                 func()
             self.apply_effects()
-            self.screen.fill(COLORS["WHITE"])
+            self.screen.fill(Colors.WHITE)
             pygame.draw.line(
                 self.screen,
-                COLORS["BLACK"],
+                Colors.BLACK,
                 (0, self.ground_y),
                 (self.screen.get_width(), self.ground_y),
                 width=1,
@@ -399,7 +404,7 @@ class Scene:
                     field.draw(self.screen)
             pygame.draw.rect(
                 self.screen,
-                COLORS["WHITE"],
+                Colors.WHITE,
                 (
                     0,
                     self.ground_y + 1,
