@@ -5,7 +5,6 @@ Run the tasks
 
 from utils import (
     AttractiveField,
-    Colors,
     Goal,
     MovingObstacle,
     PointRobot,
@@ -24,7 +23,7 @@ def main():
     robot = PointRobot(position=(10, gy - 300), mass=1, vmax=100)
 
     goal = Goal(position=(1000, gy - 3))
-    field_0 = AttractiveField(k_p=0.0005, body=goal, scheme={"field": Colors.ORANGE})
+    field_0 = AttractiveField(k_p=0.0005, body=goal)
     goal.field = field_0
 
     obstacle_1 = StaticObstacle(position=(200, gy - 10), radius=8)
