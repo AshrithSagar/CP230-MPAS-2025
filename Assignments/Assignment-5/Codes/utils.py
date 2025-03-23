@@ -67,6 +67,31 @@ class Body(pymunk.Body, ABC):
         pass
 
 
+class Goal(Body):
+    def __init__(
+        self,
+        position: Vec2d,
+        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        field: Optional[PotentialField] = None,
+        mass: float = 1,
+        body_type: int = pymunk.Body.STATIC,
+        radius: float = 3,
+    ):
+        moment = pymunk.moment_for_circle(mass, 0, radius)
+        super().__init__(position, velocity, field, mass, moment, body_type)
+        self.radius = radius
+        self.shape = pymunk.Circle(self, radius)
+
+    def draw(self, screen: pygame.Surface) -> None:
+        if self.field is not None and self.field.draw_below:
+            self.field.draw(screen)
+        pygame.draw.circle(
+            screen, COLORS["PURPLE"], self.position.int_tuple, self.radius
+        )
+        if self.field is not None and not self.field.draw_below:
+            self.field.draw(screen)
+
+
 class Obstacle(Body):
     def __init__(
         self,
@@ -80,7 +105,7 @@ class Obstacle(Body):
     ):
         super().__init__(position, velocity, field, mass, moment, body_type)
         self.radius = radius
-        self.shape = pymunk.Circle(self, self.radius)
+        self.shape = pymunk.Circle(self, radius)
 
     def draw(self, screen: pygame.Surface) -> None:
         if self.field is not None and self.field.draw_below:
@@ -167,23 +192,23 @@ class PointRobot(Body):
     def __init__(
         self,
         position: Vec2d,
-        velocity: Vec2d = Vec2d.zero(),
+        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
         vmax: float = 10,
         radius: float = 3,
     ):
-        self.radius = radius
-        moment = pymunk.moment_for_circle(mass, 0, self.radius)
+        moment = pymunk.moment_for_circle(mass, 0, radius)
         super().__init__(position, velocity, field, mass, moment)
         self.vmax = vmax  # Maximum horizontal velocity capability
-        self.shape = pymunk.Circle(self, self.radius)
+        self.radius = radius
+        self.shape = pymunk.Circle(self, radius)
 
     def draw(self, screen: pygame.Surface) -> None:
         if self.field is not None and self.field.draw_below:
             self.field.draw(screen)
         pygame.draw.circle(
-            screen, COLORS["GREEN"], self.position.int_tuple, self.radius
+            screen, COLORS["BLACK"], self.position.int_tuple, self.radius
         )
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
@@ -194,20 +219,20 @@ class PointRobot(Body):
 
 
 class AttractiveField(PotentialField):
-    def __init__(self, goal: Union[Vec2, Vec2d], k_p: float):
-        self.goal = Vec2d(*goal)
+    def __init__(self, k_p: float, body: Optional[Body] = None):
         self.k_p = k_p
-        self.draw_below: bool = False
+        self.body = body
+        self.draw_below: bool = True
 
     def draw(self, screen: pygame.Surface) -> None:
-        pygame.draw.circle(screen, COLORS["PURPLE"], self.goal.int_tuple, 3)
+        pass
 
     def get_potential_field(self, coord: Vec2d) -> float:
-        diff = coord - self.goal
+        diff = coord - self.body.position
         return 0.5 * self.k_p * diff.dot(diff)
 
     def get_force_field(self, coord: Vec2d) -> Vec2d:
-        diff = coord - self.goal
+        diff = coord - self.body.position
         return -self.k_p * diff
 
 
@@ -243,27 +268,27 @@ class RepulsiveField(PotentialField):
 
 
 class TunnelField(PotentialField):
-    def __init__(self, tunnel: Tunnel, strength: float):
-        self.tunnel = tunnel
+    def __init__(self, strength: float, body: Tunnel):
+        self.body = body
         self.strength = strength
         self.draw_below: bool = True
 
     def draw(self, screen: pygame.Surface) -> None:
-        size = self.tunnel.dimensions.int_tuple
+        size = self.body.dimensions.int_tuple
         surface = pygame.Surface(size, pygame.SRCALPHA)
         pygame.draw.rect(surface, (*COLORS["YELLOW"], 96), (0, 0, *size))
-        dest = Vec2d(*(self.tunnel.position - self.tunnel.dimensions / 2)).int_tuple
+        dest = Vec2d(*(self.body.position - self.body.dimensions / 2)).int_tuple
         screen.blit(surface, dest)
 
     def get_potential_field(self, coord: Vec2d) -> float:
-        if self.tunnel._is_inside(coord):
+        if self.body._is_inside(coord):
             return self.strength
         return 0.0
 
     def get_force_field(self, coord: Vec2d) -> Vec2d:
-        if self.tunnel._is_inside(coord):
+        if self.body._is_inside(coord):
             forces = [Vec2d(self.strength, 0), Vec2d(0, self.strength)]
-            return forces[self.tunnel.orientation]
+            return forces[self.body.orientation]
         return Vec2d.zero()
 
 
@@ -353,10 +378,10 @@ class Scene:
             for func in self.pipeline:
                 func()
             self.apply_effects()
-            self.screen.fill(COLORS["BLACK"])
+            self.screen.fill(COLORS["WHITE"])
             pygame.draw.line(
                 self.screen,
-                COLORS["WHITE"],
+                COLORS["BLACK"],
                 (0, self.ground_y),
                 (self.screen.get_width(), self.ground_y),
                 width=1,
@@ -372,7 +397,7 @@ class Scene:
                     field.draw(self.screen)
             pygame.draw.rect(
                 self.screen,
-                COLORS["BLACK"],
+                COLORS["WHITE"],
                 (
                     0,
                     self.ground_y + 1,

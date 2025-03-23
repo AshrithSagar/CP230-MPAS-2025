@@ -5,6 +5,7 @@ Run the tasks
 
 from utils import (
     AttractiveField,
+    Goal,
     MovingObstacle,
     PointRobot,
     RepulsiveField,
@@ -19,8 +20,11 @@ def main():
     scene = Scene(display_size="full", elasticity=0.6, dt=0.2, steps=10)
     gy = scene.ground_y
 
-    robot = PointRobot(position=(10, gy - 300), velocity=(0, 0), mass=1, vmax=100)
-    field_0 = AttractiveField(goal=(1000, gy - 3), k_p=0.0005)
+    robot = PointRobot(position=(10, gy - 300), mass=1, vmax=100)
+
+    goal = Goal(position=(1000, gy - 3))
+    field_0 = AttractiveField(k_p=0.0005, body=goal)
+    goal.field = field_0
 
     obstacle_1 = StaticObstacle(position=(200, gy - 10), radius=8)
     field_1 = RepulsiveField(k_r=10, d0=50, body=obstacle_1)
@@ -45,11 +49,10 @@ def main():
                 robot._set_position((obstacle_2.position.x, robot.position.y))
 
     tunnel = Tunnel(position=(800, gy - 150), dimensions=(250, 100))
-    field_3 = TunnelField(tunnel=tunnel, strength=10)
+    field_3 = TunnelField(strength=100, body=tunnel)
     tunnel.field = field_3
 
-    scene.add_bodies([robot, obstacle_1, obstacle_2, tunnel])
-    scene.add_fields([field_0, field_3])
+    scene.add_bodies([robot, goal, obstacle_1, obstacle_2, tunnel])
     scene.attach_effects(robot, [field_0, field_1, field_3])
     scene.add_pipelines([toggle_field_2])
 
