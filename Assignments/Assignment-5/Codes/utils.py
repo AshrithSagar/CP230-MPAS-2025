@@ -138,17 +138,12 @@ class Tunnel(Body):
         self.orientation = self.Orient(orientation)
         self.thickness = thickness
 
-        vectors = {
-            self.Orient.HORIZONTAL: [(-1, -1, 1, -1), (1, 1, -1, 1)],
-            self.Orient.VERTICAL: [(-1, -1, -1, 1), (1, 1, 1, -1)],
-        }
-        scale: Callable[[int, int], Vec2] = lambda x, y: Vec2d(
-            x * (self.dimensions / 2).x, y * (self.dimensions / 2).y
-        ).int_tuple
-        self.segments = [
-            pymunk.Segment(self, scale(x1, y1), scale(x2, y2), thickness)
-            for x1, y1, x2, y2 in vectors[self.orientation]
-        ]
+        hd = self.dimensions / 2
+        segments = [
+            [((-hd.x, -hd.y), (hd.x, -hd.y)), ((hd.x, hd.y), (-hd.x, hd.y))],
+            [((-hd.x, -hd.y), (-hd.x, hd.y)), ((hd.x, hd.y), (hd.x, -hd.y))],
+        ][self.orientation]
+        self.segments = [pymunk.Segment(self, *seg, thickness) for seg in segments]
 
     def draw(self, screen: pygame.Surface) -> None:
         for segment in self.segments:
