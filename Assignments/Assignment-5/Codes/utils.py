@@ -85,6 +85,15 @@ class Body(pymunk.Body, ABC):
         moment: float = pymunk.moment_for_circle(0, 0, 5),
         body_type: int = pymunk.Body.DYNAMIC,
     ):
+        """
+        Initialize the rigid body with the given parameters.
+        - `position`: Initial position of the body.
+        - `velocity`: Initial velocity of the body.
+        - `field`: Associated potential field for the body.
+        - `mass`: Mass of the body.
+        - `moment`: Moment of inertia of the body.
+        - `body_type`: Type of the body (static, dynamic or kinematic).
+        """
         super().__init__(mass, moment, body_type)
         self.position = Vec2d(*position)  # Initial position
         self.velocity = Vec2d(*velocity)  # Initial velocity
@@ -94,7 +103,7 @@ class Body(pymunk.Body, ABC):
     @abstractmethod
     def draw(self, screen: pygame.Surface) -> None:
         """
-        Draw the body on the screen.
+        Draw the body on the screen. \n
         This method should be implemented in the derived classes.
         """
         pass
@@ -106,7 +115,7 @@ class Body(pymunk.Body, ABC):
 
 class Goal(Body):
     """
-    Represents a goal in the simulation.
+    Represents a goal in the simulation. \n
     Attracts other bodies using an attractive potential field.
     """
 
@@ -134,7 +143,7 @@ class Goal(Body):
 
 class Obstacle(Body):
     """
-    Represents an obstacle in the simulation.
+    Represents an obstacle in the simulation. \n
     Can be static or moving (dynamic or kinematic), and has a repulsive potential field.
     """
 
@@ -289,7 +298,7 @@ class PointRobot(Body):
             self.field.draw(screen)
 
     def step(self) -> None:
-        """Update the robot's state, ensuring velocity does not exceed vmax."""
+        """Ensure robot's horizontal velocity does not exceed the maximum capable limit."""
         if self.velocity.x > self.vmax:
             self.velocity = self.velocity.normalized() * self.vmax
 
@@ -436,6 +445,7 @@ class Scene:
         self.ground_y = ground_y  # Ground level
         self.dt = time_step
         self.sub_steps = sub_steps  # Number of sub-steps per time step
+
         self.bodies: List[Body] = []
         self.fields: List[PotentialField] = []
         self.effects: Dict[Body, List[PotentialField]] = {}
@@ -533,6 +543,8 @@ class Scene:
             for func in self.pipeline:
                 func()
             self.apply_effects()
+
+            # Background and ground
             self.screen.fill(Scheme.BACKGROUND)
             pygame.draw.line(
                 self.screen,
@@ -541,6 +553,8 @@ class Scene:
                 (self.screen.get_width(), self.ground_y),
                 width=1,
             )
+
+            # Draw bodies and fields
             for field in self.fields:
                 if field.draw_below:
                     field.draw(self.screen)
@@ -550,6 +564,8 @@ class Scene:
             for field in self.fields:
                 if not field.draw_below:
                     field.draw(self.screen)
+
+            # Render background again below the ground
             pygame.draw.rect(
                 self.screen,
                 Scheme.BACKGROUND,
@@ -560,8 +576,10 @@ class Scene:
                     self.screen.get_height() - self.ground_y,
                 ),
             )
+
+            # Step the simulation
             for _ in range(self.sub_steps):
                 self.space.step(self.dt / self.sub_steps)
-            pygame.display.flip()
+            pygame.display.flip()  # Update the display
             clock.tick(framerate)
         pygame.quit()
