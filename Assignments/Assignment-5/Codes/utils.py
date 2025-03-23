@@ -139,15 +139,15 @@ class Tunnel(Body):
         self.thickness = thickness
 
         vectors = {
-            self.Orient.HORIZONTAL: [((-1, -1), (1, -1)), ((1, 1), (-1, 1))],
-            self.Orient.VERTICAL: [((-1, -1), (-1, 1)), ((1, 1), (1, -1))],
+            self.Orient.HORIZONTAL: [(-1, -1, 1, -1), (1, 1, -1, 1)],
+            self.Orient.VERTICAL: [(-1, -1, -1, 1), (1, 1, 1, -1)],
         }
-        hadamard: Callable[[Vec2d, Vec2d], Vec2d]
-        hadamard = lambda u, v: Vec2d(u.x * v.x, u.y * v.y)
-        scale = lambda v: hadamard(Vec2d(*v), self.dimensions / 2)
+        scale: Callable[[int, int], Vec2] = lambda x, y: Vec2d(
+            x * (self.dimensions / 2).x, y * (self.dimensions / 2).y
+        ).int_tuple
         self.segments = [
-            pymunk.Segment(self, scale(u), scale(v), thickness)
-            for u, v in vectors[self.orientation]
+            pymunk.Segment(self, scale(x1, y1), scale(x2, y2), thickness)
+            for x1, y1, x2, y2 in vectors[self.orientation]
         ]
 
     def draw(self, screen: pygame.Surface) -> None:
