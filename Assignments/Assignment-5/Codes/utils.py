@@ -6,7 +6,7 @@ Utility classes
 import math
 import os
 from abc import ABC, abstractmethod
-from enum import Enum, EnumMeta, IntEnum
+from enum import IntEnum
 from typing import Callable, List, Optional, Tuple, Union
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
@@ -18,15 +18,7 @@ from pymunk import Vec2d
 Vec2 = Tuple[float, float]
 
 
-class DirectValueMeta(EnumMeta):
-    def __getattribute__(cls, name):
-        value = super().__getattribute__(name)
-        if isinstance(value, cls):
-            value = value.value
-        return value
-
-
-class Colors(Enum, metaclass=DirectValueMeta):
+class Colors:
     WHITE = (255, 255, 255)
     BLACK = (0, 0, 0)
     RED = (255, 0, 0)
