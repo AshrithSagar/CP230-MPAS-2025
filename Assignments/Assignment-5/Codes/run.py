@@ -18,7 +18,7 @@ def main():
     scene = Scene(display_size="full", elasticity=0.6, dt=0.2, steps=10)
     gy = scene.ground_y
 
-    robot = PointRobot(position=(10, gy - 300), velocity=(0, 0), mass=1, vmax=10)
+    robot = PointRobot(position=(10, gy - 300), velocity=(0, 0), mass=1, vmax=100)
     field_0 = AttractiveField(goal=(1000, gy - 3), k_p=0.0005)
 
     obstacle_1 = StaticObstacle(position=(200, gy - 10), radius=8)
@@ -43,7 +43,11 @@ def main():
                 scene.detach_effects(obstacle_2, [field_2])
                 robot._set_position((obstacle_2.position.x, robot.position.y))
 
-    tunnel = Tunnel(position=(800, gy - 150), dimensions=(250, 100))
+    tunnel = Tunnel(
+        position=(800, gy - 150),
+        dimensions=(250, 100),
+        orientation=Tunnel.Orient.HORIZONTAL,
+    )
 
     scene.add_bodies([robot, obstacle_1, obstacle_2, tunnel])
     scene.add_fields([field_0])

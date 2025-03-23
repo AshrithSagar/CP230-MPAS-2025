@@ -63,6 +63,9 @@ class Body(pymunk.Body, ABC):
     def draw(self, screen: pygame.Surface) -> None:
         pass
 
+    def step(self) -> None:
+        pass
+
 
 class Obstacle(Body):
     def __init__(
@@ -82,12 +85,7 @@ class Obstacle(Body):
     def draw(self, screen: pygame.Surface) -> None:
         if self.field is not None and self.field.draw_below:
             self.field.draw(screen)
-        pygame.draw.circle(
-            screen,
-            COLORS["RED"],
-            (int(self.position.x), int(self.position.y)),
-            self.radius,
-        )
+        pygame.draw.circle(screen, COLORS["RED"], self.position.int_tuple, self.radius)
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
 
@@ -120,40 +118,49 @@ class MovingObstacle(Obstacle):
 
 
 class Tunnel(Body):
+    class Orient(IntEnum):
+        HORIZONTAL = 0
+        VERTICAL = 1
+
     def __init__(
         self,
         position: Union[Vec2, Vec2d],
-        dimensions: Vec2,
-        orientation: Union[int, "Tunnel.Orientation"] = 0,
+        dimensions: Union[Vec2, Vec2d],
+        orientation: Union[int, Orient],
+        thickness: int = 3,
         field: Optional[PotentialField] = None,
     ):
         moment = pymunk.moment_for_box(0, dimensions)
         super().__init__(
             position, field=field, moment=moment, body_type=pymunk.Body.STATIC
         )
-        self.width, self.height = dimensions
-        self.orientation = self.Orientation(orientation)
-        self.shape = pymunk.Poly.create_box(self, dimensions)
+        self.dimensions = Vec2d(*dimensions)
+        self.orientation = self.Orient(orientation)
+        self.thickness = thickness
 
-    class Orientation(IntEnum):
-        HORIZONTAL = 0
-        VERTICAL = 1
+        vectors = [((-1, -1), (1, -1)), ((1, 1), (-1, 1))]
+        if self.orientation == self.Orient.VERTICAL:
+            vectors = [(u, v[::-1]) for u, v in vectors]
+        vectors = [(Vec2d(*u), Vec2d(*v)) for u, v in vectors]
+        hadamard: Callable[[Vec2d, Vec2d], Vec2d]
+        hadamard = lambda u, v: Vec2d(u.x * v.x, u.y * v.y)
+        coords = [
+            (hadamard(u, self.dimensions / 2), hadamard(v, self.dimensions / 2))
+            for u, v in vectors
+        ]
+        self.segments = [pymunk.Segment(self, a, b, thickness) for a, b in coords]
 
     def draw(self, screen: pygame.Surface) -> None:
-        if self.field is not None and self.field.draw_below:
-            self.field.draw(screen)
-        pygame.draw.rect(
-            screen,
-            COLORS["BLUE"],
-            (
-                int(self.position.x - self.width / 2),
-                int(self.position.y - self.height / 2),
-                self.width,
-                self.height,
-            ),
-        )
-        if self.field is not None and not self.field.draw_below:
-            self.field.draw(screen)
+        for segment in self.segments:
+            start_pos = Vec2d(*(self.position + segment.a)).int_tuple
+            end_pos = Vec2d(*(self.position + segment.b)).int_tuple
+            pygame.draw.line(screen, COLORS["BLUE"], start_pos, end_pos, self.thickness)
+        if self.field is not None:
+            size = self.dimensions.int_tuple
+            surface = pygame.Surface(size, pygame.SRCALPHA)
+            pygame.draw.rect(surface, (*COLORS["YELLOW"], 96), (0, 0, *size))
+            dest = Vec2d(self.position - self.dimensions / 2).int_tuple
+            screen.blit(surface, dest)
 
 
 class PointRobot(Body):
@@ -176,15 +183,12 @@ class PointRobot(Body):
         if self.field is not None and self.field.draw_below:
             self.field.draw(screen)
         pygame.draw.circle(
-            screen,
-            COLORS["GREEN"],
-            (int(self.position.x), int(self.position.y)),
-            self.radius,
+            screen, COLORS["GREEN"], self.position.int_tuple, self.radius
         )
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
 
-    def update_velocity(self) -> None:
+    def step(self) -> None:
         if self.velocity.x > self.vmax:
             self.velocity = self.velocity.normalized() * self.vmax
 
@@ -196,9 +200,7 @@ class AttractiveField(PotentialField):
         self.draw_below: bool = False
 
     def draw(self, screen: pygame.Surface) -> None:
-        pygame.draw.circle(
-            screen, COLORS["PURPLE"], (int(self.goal.x), int(self.goal.y)), 3
-        )
+        pygame.draw.circle(screen, COLORS["PURPLE"], self.goal.int_tuple, 3)
 
     def get_potential_field(self, coord: Vec2d) -> float:
         diff = coord - self.goal
@@ -217,18 +219,10 @@ class RepulsiveField(PotentialField):
         self.draw_below: bool = True
 
     def draw(self, screen: pygame.Surface) -> None:
-        surface = pygame.Surface((2 * int(self.d0), 2 * int(self.d0)), pygame.SRCALPHA)
-        pygame.draw.circle(
-            surface,
-            (*COLORS["YELLOW"], 96),
-            (int(self.d0), int(self.d0)),
-            int(self.d0),
-        )
-        dest = (
-            int(self.body.position.x - self.d0),
-            int(self.body.position.y - self.d0),
-        )
-        screen.blit(surface, dest)
+        d0v = self.d0 * Vec2d.ones()
+        surface = pygame.Surface((2 * d0v).int_tuple, pygame.SRCALPHA)
+        pygame.draw.circle(surface, (*COLORS["YELLOW"], 96), d0v.int_tuple, self.d0)
+        screen.blit(surface, (self.body.position - d0v).int_tuple)
 
     def get_potential_field(self, coord: Vec2d) -> float:
         diff = coord - self.body.position
@@ -291,8 +285,11 @@ class Scene:
     def add_bodies(self, bodies: List[Body]) -> None:
         for body in bodies:
             self.bodies.append(body)
-            body.shape.elasticity = self.elasticity
-            self.space.add(body, body.shape)
+            if body.shape is not None:
+                body.shape.elasticity = self.elasticity
+                self.space.add(body, body.shape)
+            else:
+                self.space.add(body)
 
     def add_fields(self, fields: List[PotentialField]) -> None:
         self.fields.extend(fields)
@@ -344,6 +341,7 @@ class Scene:
                     field.draw(self.screen)
             for body in self.bodies:
                 body.draw(self.screen)
+                body.step()
             for field in self.fields:
                 if not field.draw_below:
                     field.draw(self.screen)
