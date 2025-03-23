@@ -34,14 +34,14 @@ def main():
     field_2 = RepulsiveField(k_r=10, d0=50, body=robot)
 
     def toggle_field_2():
-        crossed_1 = obstacle_1.position.x + field_1.d0 + field_2.d0 < robot.position.x
-        crossed_2 = obstacle_2.position.x - field_2.d0 < robot.position.x
-        if crossed_1 and not crossed_2:
+        start = obstacle_1.position.x + field_1.d0 + field_2.d0 < robot.position.x
+        end = obstacle_2.position.x - field_2.d0 < robot.position.x
+        if start and not end:
             if robot.field is None:
                 robot.field = field_2
                 scene.attach_effects(robot, [field_2])
                 scene.attach_effects(obstacle_2, [field_2])
-        else:
+        elif end:
             if robot.field is not None:
                 robot.field = None
                 scene.detach_effects(robot, [field_2])
@@ -52,9 +52,20 @@ def main():
     field_3 = TunnelField(strength=100, body=tunnel)
     tunnel.field = field_3
 
+    def toggle_goal_velocity():
+        start = tunnel.position.x + tunnel.dimensions.x / 2 < robot.position.x
+        end = goal.position.x <= robot.position.x
+        if start and not end:
+            if goal.velocity.length == 0:
+                goal._set_velocity((30, 0))
+        elif end:
+            if goal.velocity.length > 0:
+                goal._set_velocity((0, 0))
+                robot._set_velocity((0, 0))
+
     scene.add_bodies([robot, goal, obstacle_1, obstacle_2, tunnel])
     scene.attach_effects(robot, [field_0, field_1, field_3])
-    scene.add_pipelines([toggle_field_2])
+    scene.add_pipelines([toggle_field_2, toggle_goal_velocity])
 
     scene.render()
 

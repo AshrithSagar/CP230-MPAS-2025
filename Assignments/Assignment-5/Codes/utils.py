@@ -74,7 +74,7 @@ class Goal(Body):
         velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
-        body_type: int = pymunk.Body.STATIC,
+        body_type: int = pymunk.Body.DYNAMIC,
         radius: float = 3,
     ):
         moment = pymunk.moment_for_circle(mass, 0, radius)
