@@ -11,6 +11,7 @@ from utils import (
     Scene,
     StaticObstacle,
     Tunnel,
+    TunnelField,
 )
 
 
@@ -44,10 +45,12 @@ def main():
                 robot._set_position((obstacle_2.position.x, robot.position.y))
 
     tunnel = Tunnel(position=(800, gy - 150), dimensions=(250, 100))
+    field_3 = TunnelField(tunnel=tunnel, strength=10)
+    tunnel.field = field_3
 
     scene.add_bodies([robot, obstacle_1, obstacle_2, tunnel])
-    scene.add_fields([field_0])
-    scene.attach_effects(robot, [field_0, field_1])
+    scene.add_fields([field_0, field_3])
+    scene.attach_effects(robot, [field_0, field_1, field_3])
     scene.add_pipelines([toggle_field_2])
 
     scene.render()

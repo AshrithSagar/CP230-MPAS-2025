@@ -146,16 +146,21 @@ class Tunnel(Body):
         self.segments = [pymunk.Segment(self, *seg, thickness) for seg in segments]
 
     def draw(self, screen: pygame.Surface) -> None:
+        if self.field is not None and self.field.draw_below:
+            self.field.draw(screen)
         for segment in self.segments:
             start_pos = Vec2d(*(self.position + segment.a)).int_tuple
             end_pos = Vec2d(*(self.position + segment.b)).int_tuple
-            pygame.draw.line(screen, COLORS["BLUE"], start_pos, end_pos, self.thickness)
-        if self.field is not None:
-            size = self.dimensions.int_tuple
-            surface = pygame.Surface(size, pygame.SRCALPHA)
-            pygame.draw.rect(surface, (*COLORS["YELLOW"], 96), (0, 0, *size))
-            dest = Vec2d(self.position - self.dimensions / 2).int_tuple
-            screen.blit(surface, dest)
+            pygame.draw.line(screen, COLORS["RED"], start_pos, end_pos, self.thickness)
+        if self.field is not None and not self.field.draw_below:
+            self.field.draw(screen)
+
+    def _is_inside(self, coord: Vec2d) -> bool:
+        hd = self.dimensions / 2
+        return (
+            self.position.x - hd.x <= coord.x <= self.position.x + hd.x
+            and self.position.y - hd.y <= coord.y <= self.position.y + hd.y
+        )
 
 
 class PointRobot(Body):
@@ -235,6 +240,31 @@ class RepulsiveField(PotentialField):
         if math.isnan(force_mag) or math.isnan(diff.length):
             return Vec2d.zero()
         return force_mag * diff.normalized()
+
+
+class TunnelField(PotentialField):
+    def __init__(self, tunnel: Tunnel, strength: float):
+        self.tunnel = tunnel
+        self.strength = strength
+        self.draw_below: bool = True
+
+    def draw(self, screen: pygame.Surface) -> None:
+        size = self.tunnel.dimensions.int_tuple
+        surface = pygame.Surface(size, pygame.SRCALPHA)
+        pygame.draw.rect(surface, (*COLORS["YELLOW"], 96), (0, 0, *size))
+        dest = Vec2d(*(self.tunnel.position - self.tunnel.dimensions / 2)).int_tuple
+        screen.blit(surface, dest)
+
+    def get_potential_field(self, coord: Vec2d) -> float:
+        if self.tunnel._is_inside(coord):
+            return self.strength
+        return 0.0
+
+    def get_force_field(self, coord: Vec2d) -> Vec2d:
+        if self.tunnel._is_inside(coord):
+            forces = [Vec2d(self.strength, 0), Vec2d(0, self.strength)]
+            return forces[self.tunnel.orientation]
+        return Vec2d.zero()
 
 
 class Scene:
