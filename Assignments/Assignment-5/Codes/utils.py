@@ -365,7 +365,7 @@ class Scene:
     def add_pipelines(self, funcs: List[Callable]) -> None:
         self.pipeline.extend(funcs)
 
-    def render(self) -> None:
+    def render(self, stopping: Optional[Callable[[], bool]] = None) -> None:
         running = True
         clock = pygame.time.Clock()
         while running:
@@ -374,6 +374,8 @@ class Scene:
                     running = False
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     running = False
+            if stopping is not None and stopping():
+                running = False
 
             for func in self.pipeline:
                 func()

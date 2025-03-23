@@ -67,7 +67,8 @@ def main():
     scene.attach_effects(robot, [field_0, field_1, field_3])
     scene.add_pipelines([toggle_field_2, toggle_goal_velocity])
 
-    scene.render()
+    stop = lambda: goal.position.x - 7 <= robot.position.x
+    scene.render(stopping=stop)
 
 
 if __name__ == "__main__":
