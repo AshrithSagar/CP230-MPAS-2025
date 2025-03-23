@@ -43,11 +43,7 @@ def main():
                 scene.detach_effects(obstacle_2, [field_2])
                 robot._set_position((obstacle_2.position.x, robot.position.y))
 
-    tunnel = Tunnel(
-        position=(800, gy - 150),
-        dimensions=(250, 100),
-        orientation=Tunnel.Orient.HORIZONTAL,
-    )
+    tunnel = Tunnel(position=(800, gy - 150), dimensions=(250, 100))
 
     scene.add_bodies([robot, obstacle_1, obstacle_2, tunnel])
     scene.add_fields([field_0])

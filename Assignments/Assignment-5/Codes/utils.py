@@ -126,7 +126,7 @@ class Tunnel(Body):
         self,
         position: Union[Vec2, Vec2d],
         dimensions: Union[Vec2, Vec2d],
-        orientation: Union[int, Orient],
+        orientation: Union[int, Orient] = Orient.HORIZONTAL,
         thickness: int = 3,
         field: Optional[PotentialField] = None,
     ):
@@ -138,17 +138,17 @@ class Tunnel(Body):
         self.orientation = self.Orient(orientation)
         self.thickness = thickness
 
-        vectors = [((-1, -1), (1, -1)), ((1, 1), (-1, 1))]
-        if self.orientation == self.Orient.VERTICAL:
-            vectors = [(u, v[::-1]) for u, v in vectors]
-        vectors = [(Vec2d(*u), Vec2d(*v)) for u, v in vectors]
+        vectors = {
+            self.Orient.HORIZONTAL: [((-1, -1), (1, -1)), ((1, 1), (-1, 1))],
+            self.Orient.VERTICAL: [((-1, -1), (-1, 1)), ((1, 1), (1, -1))],
+        }
         hadamard: Callable[[Vec2d, Vec2d], Vec2d]
         hadamard = lambda u, v: Vec2d(u.x * v.x, u.y * v.y)
-        coords = [
-            (hadamard(u, self.dimensions / 2), hadamard(v, self.dimensions / 2))
-            for u, v in vectors
+        scale = lambda v: hadamard(Vec2d(*v), self.dimensions / 2)
+        self.segments = [
+            pymunk.Segment(self, scale(u), scale(v), thickness)
+            for u, v in vectors[self.orientation]
         ]
-        self.segments = [pymunk.Segment(self, a, b, thickness) for a, b in coords]
 
     def draw(self, screen: pygame.Surface) -> None:
         for segment in self.segments:
