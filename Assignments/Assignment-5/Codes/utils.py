@@ -244,7 +244,7 @@ class AttractiveField(PotentialField):
         self.body = body
 
     def draw(self, screen: pygame.Surface) -> None:
-        pygame.draw.circle(screen, Scheme.FIELD, self.body.position.int_tuple, 10)
+        pass
 
     def get_potential_field(self, coord: Vec2d) -> float:
         diff = coord - self.body.position

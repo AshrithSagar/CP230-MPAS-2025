@@ -17,7 +17,7 @@ from utils import (
 
 
 def main():
-    scene = Scene(display_size="full", elasticity=0.6, dt=0.2, steps=10)
+    scene = Scene(display_size=(1400, 400), elasticity=0.6, dt=0.2, steps=10)
     gy = scene.ground_y
 
     robot = PointRobot(position=(10, gy - 300), mass=1, vmax=100)
