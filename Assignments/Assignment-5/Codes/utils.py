@@ -7,7 +7,7 @@ import math
 import os
 from abc import ABC, abstractmethod
 from enum import IntEnum
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame
@@ -16,20 +16,48 @@ import pymunk.pygame_util
 from pymunk import Vec2d
 
 Vec2 = Tuple[float, float]
+Color = Tuple[int, int, int]
+SchemeDict = Dict[str, Color]
+SchemeType = Union["Scheme", SchemeDict, None]
 
 
 class Colors:
-    WHITE = (255, 255, 255)
-    BLACK = (0, 0, 0)
-    RED = (255, 0, 0)
-    GREEN = (0, 255, 0)
-    BLUE = (0, 0, 255)
-    YELLOW = (255, 255, 0)
-    PURPLE = (255, 0, 255)
+    WHITE: Color = (255, 255, 255)
+    BLACK: Color = (0, 0, 0)
+    RED: Color = (255, 0, 0)
+    GREEN: Color = (0, 255, 0)
+    BLUE: Color = (0, 0, 255)
+    YELLOW: Color = (255, 255, 0)
+    PURPLE: Color = (255, 0, 255)
+    ORANGE: Color = (255, 165, 0)
+
+
+class Scheme:
+    default = {
+        "background": Colors.WHITE,
+        "ground": Colors.BLACK,
+        "goal": Colors.PURPLE,
+        "obstacle": Colors.RED,
+        "robot": Colors.BLUE,
+        "field": (*Colors.YELLOW, 96),
+    }
+
+    def __init__(self, colors: SchemeType = None):
+        if isinstance(colors, Scheme):
+            colors = colors.colors
+        elif colors is None:
+            colors = self.default
+        self.colors = {**self.default, **colors}
+
+    def __getitem__(self, key: str) -> Color:
+        if key in self.colors:
+            return self.colors[key]
 
 
 class PotentialField(ABC):
-    draw_below: bool
+    def __init__(self, draw_below: bool = True, scheme: SchemeType = None):
+        self.draw_below = draw_below
+        self.scheme = Scheme(scheme)
 
     @abstractmethod
     def draw(self, screen: pygame.Surface) -> None:
@@ -53,11 +81,13 @@ class Body(pymunk.Body, ABC):
         mass: float = 0,
         moment: float = pymunk.moment_for_circle(0, 0, 5),
         body_type: int = pymunk.Body.DYNAMIC,
+        scheme: SchemeType = None,
     ):
         super().__init__(mass, moment, body_type)
         self.position = Vec2d(*position)
         self.velocity = Vec2d(*velocity)
         self.field = field
+        self.scheme = Scheme(scheme)
         self.shape: pymunk.Shape = None
 
     @abstractmethod
@@ -77,16 +107,19 @@ class Goal(Body):
         mass: float = 1,
         body_type: int = pymunk.Body.DYNAMIC,
         radius: float = 3,
+        scheme: SchemeType = None,
     ):
         moment = pymunk.moment_for_circle(mass, 0, radius)
-        super().__init__(position, velocity, field, mass, moment, body_type)
+        super().__init__(position, velocity, field, mass, moment, body_type, scheme)
         self.radius = radius
         self.shape = pymunk.Circle(self, radius)
 
     def draw(self, screen: pygame.Surface) -> None:
         if self.field is not None and self.field.draw_below:
             self.field.draw(screen)
-        pygame.draw.circle(screen, Colors.PURPLE, self.position.int_tuple, self.radius)
+        pygame.draw.circle(
+            screen, self.scheme["goal"], self.position.int_tuple, self.radius
+        )
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
 
@@ -101,15 +134,18 @@ class Obstacle(Body):
         moment: float = 0,
         body_type: int = pymunk.Body.STATIC,
         radius: float = 3,
+        scheme: SchemeType = None,
     ):
-        super().__init__(position, velocity, field, mass, moment, body_type)
+        super().__init__(position, velocity, field, mass, moment, body_type, scheme)
         self.radius = radius
         self.shape = pymunk.Circle(self, radius)
 
     def draw(self, screen: pygame.Surface) -> None:
         if self.field is not None and self.field.draw_below:
             self.field.draw(screen)
-        pygame.draw.circle(screen, Colors.RED, self.position.int_tuple, self.radius)
+        pygame.draw.circle(
+            screen, self.scheme["obstacle"], self.position.int_tuple, self.radius
+        )
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
 
@@ -120,9 +156,14 @@ class StaticObstacle(Obstacle):
         position: Union[Vec2, Vec2d],
         field: Optional[PotentialField] = None,
         radius: float = 3,
+        scheme: SchemeType = None,
     ):
         super().__init__(
-            position, field=field, body_type=pymunk.Body.STATIC, radius=radius
+            position,
+            field=field,
+            body_type=pymunk.Body.STATIC,
+            radius=radius,
+            scheme=scheme,
         )
 
 
@@ -134,10 +175,18 @@ class MovingObstacle(Obstacle):
         field: Optional[PotentialField] = None,
         mass: float = 1,
         radius: float = 3,
+        scheme: SchemeType = None,
     ):
         moment = pymunk.moment_for_circle(mass, 0, radius)
         super().__init__(
-            position, velocity, field, mass, moment, pymunk.Body.KINEMATIC, radius
+            position,
+            velocity,
+            field,
+            mass,
+            moment,
+            body_type=pymunk.Body.DYNAMIC,
+            radius=radius,
+            scheme=scheme,
         )
 
 
@@ -153,10 +202,15 @@ class Tunnel(Body):
         orientation: Union[int, Orient] = Orient.HORIZONTAL,
         thickness: int = 3,
         field: Optional[PotentialField] = None,
+        scheme: SchemeType = None,
     ):
         moment = pymunk.moment_for_box(0, dimensions)
         super().__init__(
-            position, field=field, moment=moment, body_type=pymunk.Body.STATIC
+            position,
+            field=field,
+            moment=moment,
+            body_type=pymunk.Body.STATIC,
+            scheme=scheme,
         )
         self.dimensions = Vec2d(*dimensions)
         self.orientation = self.Orient(orientation)
@@ -175,7 +229,9 @@ class Tunnel(Body):
         for segment in self.segments:
             start_pos = Vec2d(*(self.position + segment.a)).int_tuple
             end_pos = Vec2d(*(self.position + segment.b)).int_tuple
-            pygame.draw.line(screen, Colors.RED, start_pos, end_pos, self.thickness)
+            pygame.draw.line(
+                screen, self.scheme["obstacle"], start_pos, end_pos, self.thickness
+            )
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
 
@@ -196,9 +252,10 @@ class PointRobot(Body):
         mass: float = 1,
         vmax: float = 10,
         radius: float = 3,
+        scheme: SchemeType = None,
     ):
         moment = pymunk.moment_for_circle(mass, 0, radius)
-        super().__init__(position, velocity, field, mass, moment)
+        super().__init__(position, velocity, field, mass, moment, scheme=scheme)
         self.vmax = vmax  # Maximum horizontal velocity capability
         self.radius = radius
         self.shape = pymunk.Circle(self, radius)
@@ -206,7 +263,9 @@ class PointRobot(Body):
     def draw(self, screen: pygame.Surface) -> None:
         if self.field is not None and self.field.draw_below:
             self.field.draw(screen)
-        pygame.draw.circle(screen, Colors.BLACK, self.position.int_tuple, self.radius)
+        pygame.draw.circle(
+            screen, self.scheme["robot"], self.position.int_tuple, self.radius
+        )
         if self.field is not None and not self.field.draw_below:
             self.field.draw(screen)
 
@@ -216,13 +275,17 @@ class PointRobot(Body):
 
 
 class AttractiveField(PotentialField):
-    def __init__(self, k_p: float, body: Optional[Body] = None):
+    def __init__(
+        self, k_p: float, body: Optional[Body] = None, scheme: SchemeType = None
+    ):
+        super().__init__(scheme=scheme)
         self.k_p = k_p
         self.body = body
-        self.draw_below: bool = True
 
     def draw(self, screen: pygame.Surface) -> None:
-        pass
+        pygame.draw.circle(
+            screen, self.scheme["field"], self.body.position.int_tuple, 10
+        )
 
     def get_potential_field(self, coord: Vec2d) -> float:
         diff = coord - self.body.position
@@ -234,16 +297,22 @@ class AttractiveField(PotentialField):
 
 
 class RepulsiveField(PotentialField):
-    def __init__(self, k_r: float, d0: float, body: Optional[Body] = None):
+    def __init__(
+        self,
+        k_r: float,
+        d0: float,
+        body: Optional[Body] = None,
+        scheme: SchemeType = None,
+    ):
+        super().__init__(scheme=scheme)
         self.k_r = k_r
         self.d0 = d0  # Virtual periphery radius
         self.body = body
-        self.draw_below: bool = True
 
     def draw(self, screen: pygame.Surface) -> None:
         d0v = self.d0 * Vec2d.ones()
         surface = pygame.Surface((2 * d0v).int_tuple, pygame.SRCALPHA)
-        pygame.draw.circle(surface, (*Colors.YELLOW, 96), d0v.int_tuple, self.d0)
+        pygame.draw.circle(surface, self.scheme["field"], d0v.int_tuple, self.d0)
         screen.blit(surface, (self.body.position - d0v).int_tuple)
 
     def get_potential_field(self, coord: Vec2d) -> float:
@@ -265,15 +334,15 @@ class RepulsiveField(PotentialField):
 
 
 class TunnelField(PotentialField):
-    def __init__(self, strength: float, body: Tunnel):
-        self.body = body
+    def __init__(self, strength: float, body: Tunnel, scheme: SchemeType = None):
+        super().__init__(scheme=scheme)
         self.strength = strength
-        self.draw_below: bool = True
+        self.body = body
 
     def draw(self, screen: pygame.Surface) -> None:
         size = self.body.dimensions.int_tuple
         surface = pygame.Surface(size, pygame.SRCALPHA)
-        pygame.draw.rect(surface, (*Colors.YELLOW, 96), (0, 0, *size))
+        pygame.draw.rect(surface, self.scheme["field"], (0, 0, *size))
         dest = Vec2d(*(self.body.position - self.body.dimensions / 2)).int_tuple
         screen.blit(surface, dest)
 
@@ -297,15 +366,17 @@ class Scene:
         ground_y: Optional[int] = None,
         dt: float = 0.1,
         steps: int = 10,
+        scheme: SchemeType = None,
     ):
         self.size = display_size
         self.elasticity = elasticity  # Coefficient of restitution
         self.ground_y = ground_y  # Ground level
         self.dt = dt  # Time step
         self.steps = steps  # Number of steps per frame
+        self.scheme = Scheme(scheme)
         self.bodies: List[Body] = []
         self.fields: List[PotentialField] = []
-        self.effects: dict[Body, List[PotentialField]] = {}
+        self.effects: Dict[Body, List[PotentialField]] = {}
         self.pipeline: List[Callable] = []
 
         pygame.init()
@@ -377,10 +448,10 @@ class Scene:
             for func in self.pipeline:
                 func()
             self.apply_effects()
-            self.screen.fill(Colors.WHITE)
+            self.screen.fill(self.scheme["background"])
             pygame.draw.line(
                 self.screen,
-                Colors.BLACK,
+                self.scheme["ground"],
                 (0, self.ground_y),
                 (self.screen.get_width(), self.ground_y),
                 width=1,
@@ -396,7 +467,7 @@ class Scene:
                     field.draw(self.screen)
             pygame.draw.rect(
                 self.screen,
-                Colors.WHITE,
+                self.scheme["background"],
                 (
                     0,
                     self.ground_y + 1,
