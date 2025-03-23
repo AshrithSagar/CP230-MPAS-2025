@@ -1,6 +1,6 @@
 """
 utils.py
-Utility classes
+Utility classes for simulation of potential fields and bodies in a 2D environment.
 """
 
 import math
@@ -15,11 +15,14 @@ import pymunk
 import pymunk.pygame_util
 from pymunk import Vec2d
 
+# Type aliases
 Vec2 = Tuple[float, float]
 Color = Tuple[int, int, int]
 
 
 class Colors:
+    """Predefined color constants."""
+
     WHITE: Color = (255, 255, 255)
     BLACK: Color = (0, 0, 0)
     RED: Color = (255, 0, 0)
@@ -31,32 +34,48 @@ class Colors:
 
 
 class Scheme:
+    """Color scheme for different elements in the simulation."""
+
     BACKGROUND = Colors.WHITE
     GROUND = Colors.BLACK
     GOAL = Colors.PURPLE
     OBSTACLE = Colors.RED
     ROBOT = Colors.BLUE
-    FIELD = (*Colors.YELLOW, 96)
+    FIELD = (*Colors.YELLOW, 96)  # Semi-transparent yellow
 
 
 class PotentialField(ABC):
+    """Abstract base class for potential fields."""
+
     def __init__(self, draw_below: bool = True):
+        """
+        Initialize the potential field with the given parameters.
+        - `draw_below`: If True, the field is drawn below it's associated body, else above it.
+        """
         self.draw_below = draw_below
 
     @abstractmethod
     def draw(self, screen: pygame.Surface) -> None:
+        """
+        Draw the potential field on the screen. \n
+        This method should be implemented in the derived classes to visualize the field in the simulation.
+        """
         pass
 
     @abstractmethod
     def get_potential_field(self, coord: Vec2d) -> float:
+        """Calculate the potential field value at a given coordinate."""
         pass
 
     @abstractmethod
     def get_force_field(self, coord: Vec2d) -> Vec2d:
+        """Calculate the force vector at a given coordinate."""
         pass
 
 
 class Body(pymunk.Body, ABC):
+    """Abstract base class for rigid bodies in the simulation."""
+
     def __init__(
         self,
         position: Union[Vec2, Vec2d],
@@ -67,20 +86,30 @@ class Body(pymunk.Body, ABC):
         body_type: int = pymunk.Body.DYNAMIC,
     ):
         super().__init__(mass, moment, body_type)
-        self.position = Vec2d(*position)
-        self.velocity = Vec2d(*velocity)
-        self.field = field
-        self.shape: pymunk.Shape = None
+        self.position = Vec2d(*position)  # Initial position
+        self.velocity = Vec2d(*velocity)  # Initial velocity
+        self.field = field  # Associated potential field
+        self.shape: pymunk.Shape = None  # Body shape for collision detection
 
     @abstractmethod
     def draw(self, screen: pygame.Surface) -> None:
+        """
+        Draw the body on the screen.
+        This method should be implemented in the derived classes.
+        """
         pass
 
     def step(self) -> None:
+        """Function to update any state variables of the body at each time step."""
         pass
 
 
 class Goal(Body):
+    """
+    Represents a goal in the simulation.
+    Attracts other bodies using an attractive potential field.
+    """
+
     def __init__(
         self,
         position: Vec2d,
@@ -104,6 +133,11 @@ class Goal(Body):
 
 
 class Obstacle(Body):
+    """
+    Represents an obstacle in the simulation.
+    Can be static or moving (dynamic or kinematic), and has a repulsive potential field.
+    """
+
     def __init__(
         self,
         position: Union[Vec2, Vec2d],
@@ -129,6 +163,11 @@ class Obstacle(Body):
 
 
 class StaticObstacle(Obstacle):
+    """
+    Represents a static obstacle in the simulation. \n
+    A static obstacle does not move and has a repulsive potential field.
+    """
+
     def __init__(
         self,
         position: Union[Vec2, Vec2d],
@@ -141,6 +180,11 @@ class StaticObstacle(Obstacle):
 
 
 class MovingObstacle(Obstacle):
+    """
+    Represents a moving obstacle in the simulation. \n
+    A moving obstacle has a velocity and can move around and interact with other bodies, fields and the environment.
+    """
+
     def __init__(
         self,
         position: Union[Vec2, Vec2d],
@@ -162,6 +206,11 @@ class MovingObstacle(Obstacle):
 
 
 class Tunnel(Body):
+    """
+    Represents a tunnel in the simulation. \n
+    A tunnel is a rectangular region that bodies can pass through.
+    """
+
     class Orient(IntEnum):
         HORIZONTAL = 0
         VERTICAL = 1
@@ -182,6 +231,7 @@ class Tunnel(Body):
         self.orientation = self.Orient(orientation)
         self.thickness = thickness
 
+        # Segments (walls) of the tunnel
         hd = self.dimensions / 2
         segments = [
             [((-hd.x, -hd.y), (hd.x, -hd.y)), ((hd.x, hd.y), (-hd.x, hd.y))],
@@ -202,6 +252,7 @@ class Tunnel(Body):
             self.field.draw(screen)
 
     def _is_inside(self, coord: Vec2d) -> bool:
+        """Check if a coordinate is inside the tunnel."""
         hd = self.dimensions / 2
         return (
             self.position.x - hd.x <= coord.x <= self.position.x + hd.x
@@ -210,6 +261,11 @@ class Tunnel(Body):
 
 
 class PointRobot(Body):
+    """
+    Represents a point robot in the simulation. \n
+    The robot can move and interact with potential fields and other bodies.
+    """
+
     def __init__(
         self,
         position: Vec2d,
@@ -233,12 +289,24 @@ class PointRobot(Body):
             self.field.draw(screen)
 
     def step(self) -> None:
+        """Update the robot's state, ensuring velocity does not exceed vmax."""
         if self.velocity.x > self.vmax:
             self.velocity = self.velocity.normalized() * self.vmax
 
 
 class AttractiveField(PotentialField):
+    """
+    Represents an radial attractive field in the simulation. \n
+    Attracts bodies towards a source with a force proportional to the distance.
+    """
+
     def __init__(self, k_p: float, body: Optional[Body] = None):
+        """
+        Initialize the attractive field with the given parameters. \n
+        The force field at a point `x` is given by `-k_p * (x - x0)`, where `x0` is the source position.
+        - `k_p`: Proportional constant for the attractive force.
+        - `body`: The source body that exerts the attractive force.
+        """
         super().__init__()
         self.k_p = k_p
         self.body = body
@@ -256,12 +324,25 @@ class AttractiveField(PotentialField):
 
 
 class RepulsiveField(PotentialField):
+    """
+    Represents a radial repulsive field in the simulation. \n
+    Exerts a force on bodies within a certain radius (virtual periphery) around the source.
+    """
+
     def __init__(
         self,
         k_r: float,
         d0: float,
         body: Optional[Body] = None,
     ):
+        """
+        Initialize the repulsive field with the given parameters. \n
+        The force field at a point `x` is given by `k_r * (1/d - 1/d0) * 1 / d^2`,
+        where `d` is the distance between `x` and the source position.
+        - `k_r`: Repulsion constant for the repulsive force.
+        - `d0`: Virtual periphery radius around the source.
+        - `body`: The source body that exerts the repulsive force.
+        """
         super().__init__()
         self.k_r = k_r
         self.d0 = d0  # Virtual periphery radius
@@ -292,6 +373,11 @@ class RepulsiveField(PotentialField):
 
 
 class TunnelField(PotentialField):
+    """
+    Represents a tunnel field in the simulation. \n
+    Exerts a force on bodies passing through it.
+    """
+
     def __init__(self, strength: float, body: Tunnel):
         super().__init__()
         self.strength = strength
@@ -317,24 +403,45 @@ class TunnelField(PotentialField):
 
 
 class Scene:
+    """
+    Represents a 2D simulation environment with bodies, potential fields and effects.
+    Call `render()` method to start the simulation, after adding bodies, fields and effects as desired.
+    The interaction between bodies and fields is handled through effects, which can be attached (or detached) to the bodies using the `attach_effects()` (or `detach_effects()`) method. \n
+    Add the bodies in the scene using the `add_bodies()` method.
+    Potential fields are automatically handled by the bodies if they are associated with them, if not they can be added using the `add_fields())` method.
+    Pipeline functions can be added using the `add_pipelines()` method to perform additional operations at each time step, such as for toggling effects or for updating the states of the bodies.
+    """
+
     def __init__(
         self,
         display_size: Union[Tuple[int, int], str] = "full",
         elasticity: float = 1.0,
         ground_y: Optional[int] = None,
-        dt: float = 0.1,
-        steps: int = 10,
+        time_step: float = 0.1,
+        sub_steps: int = 10,
     ):
+        """
+        Initialize the simulation environment with the given parameters.
+        - `display_size`: Size of the display window in pixels, or `"full"` for fullscreen.
+        - `elasticity`: Coefficient of restitution for collisions.
+        - `ground_y`: Y-coordinate of the ground level, or `None` to set it near the bottom of the display window.
+            The top-left corner is the origin `(0, 0)`, with positive y-axis pointing downwards.
+        - `time_step`: Time step for the simulation.
+        - `sub_steps`: Number of sub-steps per time step.
+            Increase this value for smoother simulations.
+        """
+
         self.size = display_size
         self.elasticity = elasticity  # Coefficient of restitution
         self.ground_y = ground_y  # Ground level
-        self.dt = dt  # Time step
-        self.steps = steps  # Number of steps per frame
+        self.dt = time_step
+        self.sub_steps = sub_steps  # Number of sub-steps per time step
         self.bodies: List[Body] = []
         self.fields: List[PotentialField] = []
         self.effects: Dict[Body, List[PotentialField]] = {}
         self.pipeline: List[Callable] = []
 
+        # Initialize the Pygame window
         pygame.init()
         if self.size == "full":
             display_params = {"size": (0, 0), "flags": pygame.FULLSCREEN}
@@ -343,6 +450,7 @@ class Scene:
         self.screen: pygame.Surface = pygame.display.set_mode(**display_params)
         self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
 
+        # Initialize the PyMunk space
         self.space = pymunk.Space()
         self.space.gravity = Vec2d(0, 9.8)
         if self.ground_y is None:
@@ -357,6 +465,7 @@ class Scene:
         self.space.add(self.ground)
 
     def add_bodies(self, bodies: List[Body]) -> None:
+        """Add bodies to the simulation environment."""
         for body in bodies:
             self.bodies.append(body)
             if body.shape is not None:
@@ -366,17 +475,27 @@ class Scene:
                 self.space.add(body)
 
     def add_fields(self, fields: List[PotentialField]) -> None:
+        """
+        Add potential fields to the simulation environment. \n
+        This method should be used to add fields that are not associated with any body.
+        """
         self.fields.extend(fields)
 
     def attach_effects(self, body: Body, fields: List[PotentialField]) -> None:
+        """
+        Enable the body to be affected by the given potential fields. \n
+        The fields will be calculated at each time step and the total force will be applied to the body.
+        """
         self.effects[body] = fields
 
     def detach_effects(self, body: Body, fields: List[PotentialField]) -> None:
+        """Undo attach effects for the body."""
         for field in fields:
             if field in self.effects[body]:
                 self.effects[body].remove(field)
 
     def apply_effects(self) -> None:
+        """Calculate and apply the total force on each body due to the attached potential fields."""
         for body, fields in self.effects.items():
             total_force = Vec2d.zero()
             for field in fields:
@@ -387,9 +506,19 @@ class Scene:
                 body.apply_impulse_at_local_point(total_force, (0, 0))
 
     def add_pipelines(self, funcs: List[Callable]) -> None:
+        """Add functions to the pipeline to be executed at each time step before rendering the frame."""
         self.pipeline.extend(funcs)
 
-    def render(self, stopping: Optional[Callable[[], bool]] = None) -> None:
+    def render(
+        self, stopping: Optional[Callable[[], bool]] = None, framerate: int = 60
+    ) -> None:
+        """
+        Start the simulation and render the environment.
+        Press `Esc` or close the window to stop the simulation.
+        - `stopping`: Optional function that returns a bool. If True, the simulation will stop.
+        - `framerate`: Frames per second for rendering the simulation.
+        """
+
         running = True
         clock = pygame.time.Clock()
         while running:
@@ -431,8 +560,8 @@ class Scene:
                     self.screen.get_height() - self.ground_y,
                 ),
             )
-            for _ in range(self.steps):
-                self.space.step(self.dt / self.steps)
+            for _ in range(self.sub_steps):
+                self.space.step(self.dt / self.sub_steps)
             pygame.display.flip()
-            clock.tick(60)
+            clock.tick(framerate)
         pygame.quit()

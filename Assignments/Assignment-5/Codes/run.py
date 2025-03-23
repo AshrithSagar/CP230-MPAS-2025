@@ -17,19 +17,22 @@ from utils import (
 
 
 def main():
-    scene = Scene(display_size=(1400, 400), elasticity=0.6, dt=0.2, steps=10)
+    scene = Scene(display_size=(1400, 400), elasticity=0.6, time_step=0.2, sub_steps=10)
     gy = scene.ground_y
 
     robot = PointRobot(position=(10, gy - 300), mass=1, vmax=100)
 
+    # Task-1
     goal = Goal(position=(1000, gy - 3))
     field_0 = AttractiveField(k_p=0.0005, body=goal)
     goal.field = field_0
 
+    # Task-2
     obstacle_1 = StaticObstacle(position=(200, gy - 10), radius=8)
     field_1 = RepulsiveField(k_r=10, d0=50, body=obstacle_1)
     obstacle_1.field = field_1
 
+    # Task-3
     obstacle_2 = MovingObstacle(position=(600, gy - 3), velocity=(-5, 0))
     field_2 = RepulsiveField(k_r=10, d0=50, body=robot)
 
@@ -48,10 +51,12 @@ def main():
                 scene.detach_effects(obstacle_2, [field_2])
                 robot._set_position((obstacle_2.position.x, robot.position.y))
 
+    # Task-4
     tunnel = Tunnel(position=(800, gy - 150), dimensions=(250, 100))
     field_3 = TunnelField(strength=100, body=tunnel)
     tunnel.field = field_3
 
+    # Task-5
     def toggle_goal_velocity():
         start = tunnel.position.x + tunnel.dimensions.x / 2 < robot.position.x
         end = goal.position.x <= robot.position.x
@@ -67,8 +72,8 @@ def main():
     scene.attach_effects(robot, [field_0, field_1, field_3])
     scene.add_pipelines([toggle_field_2, toggle_goal_velocity])
 
-    stop = lambda: goal.position.x - 7 <= robot.position.x
-    scene.render(stopping=stop)
+    stopping_condition = lambda: goal.position.x - 7 <= robot.position.x
+    scene.render(stopping=stopping_condition, framerate=60)
 
 
 if __name__ == "__main__":
