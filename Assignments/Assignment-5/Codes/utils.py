@@ -89,7 +89,7 @@ class Body(pymunk.Body, ABC):
     def draw(self, screen: pygame.Surface) -> None:
         """
         Draw the body on the screen. \n
-        This method should be implemented in the derived classes.
+        This method should be implemented in the derived classes, by using the Pygame drawing functions.
         """
         pass
 
@@ -115,7 +115,7 @@ class PointBody(Body):
         velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
-        body_type: int = pymunk.Body.DYNAMIC,
+        body_type: int = Body.DYNAMIC,
         radius: float = 3,
     ):
         moment = pymunk.moment_for_circle(mass, 0, radius)
@@ -125,11 +125,7 @@ class PointBody(Body):
         self.shape = pymunk.Circle(self, radius)
 
     def draw(self, screen: pygame.Surface) -> None:
-        if self.field is not None and self.field.draw_below:
-            self.field.draw(screen)
         pygame.draw.circle(screen, self.scheme, self.position.int_tuple, self.radius)
-        if self.field is not None and not self.field.draw_below:
-            self.field.draw(screen)
 
 
 class Goal(PointBody):
@@ -144,7 +140,7 @@ class Goal(PointBody):
         velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
-        body_type: int = pymunk.Body.STATIC,
+        body_type: int = Body.STATIC,
         vd: float = 10,
         radius: float = 3,
     ):
@@ -155,8 +151,8 @@ class Goal(PointBody):
 
     def enable_motion(self) -> None:
         """Enable motion for the goal."""
-        self.body_type = pymunk.Body.KINEMATIC
-        self._set_velocity((self.vd, 0))
+        self.body_type = Body.KINEMATIC
+        self._set_velocity((self.vd, 0))  # Simplified case
 
 
 class PointObstacle(Body):
@@ -172,7 +168,7 @@ class PointObstacle(Body):
         field: Optional[PotentialField] = None,
         mass: float = 0,
         moment: float = 0,
-        body_type: int = pymunk.Body.STATIC,
+        body_type: int = Body.STATIC,
         radius: float = 3,
     ):
         super().__init__(position, velocity, field, mass, moment, body_type)
@@ -180,13 +176,9 @@ class PointObstacle(Body):
         self.shape = pymunk.Circle(self, radius)
 
     def draw(self, screen: pygame.Surface) -> None:
-        if self.field is not None and self.field.draw_below:
-            self.field.draw(screen)
         pygame.draw.circle(
             screen, Scheme.OBSTACLE, self.position.int_tuple, self.radius
         )
-        if self.field is not None and not self.field.draw_below:
-            self.field.draw(screen)
 
 
 class StaticPointObstacle(PointObstacle):
@@ -201,9 +193,7 @@ class StaticPointObstacle(PointObstacle):
         field: Optional[PotentialField] = None,
         radius: float = 3,
     ):
-        super().__init__(
-            position, field=field, body_type=pymunk.Body.STATIC, radius=radius
-        )
+        super().__init__(position, field=field, body_type=Body.STATIC, radius=radius)
 
 
 class MovingPointObstacle(PointObstacle):
@@ -227,7 +217,7 @@ class MovingPointObstacle(PointObstacle):
             field,
             mass,
             moment,
-            body_type=pymunk.Body.DYNAMIC,
+            body_type=Body.DYNAMIC,
             radius=radius,
         )
 
@@ -242,7 +232,7 @@ class PolyObstacle(Body):
         velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 0,
-        body_type: int = pymunk.Body.STATIC,
+        body_type: int = Body.STATIC,
         radius: float = 0,
     ):
         self.vertices = [Vec2d(*v) for v in vertices]
@@ -253,11 +243,20 @@ class PolyObstacle(Body):
         self.points = [self.local_to_world(v) for v in self.shape.get_vertices()]
 
     def draw(self, screen: pygame.Surface) -> None:
-        if self.field is not None and self.field.draw_below:
-            self.field.draw(screen)
         pygame.draw.polygon(screen, Scheme.OBSTACLE, self.points)
-        if self.field is not None and not self.field.draw_below:
-            self.field.draw(screen)
+
+    def _get_dimensions(self) -> pymunk.BB:
+        """
+        Get the bounding box dimensions of the polygonal obstacle.
+        Returns (start_x, bottom_y, end_x, top_y).
+        """
+        start_x, bottom_y = self.position.int_tuple
+        end_x, top_y = start_x, bottom_y
+        for point in self.points:
+            x, y = point.int_tuple
+            start_x, bottom_y = min(start_x, x), min(bottom_y, y)
+            end_x, top_y = max(end_x, x), max(top_y, y)
+        return pymunk.BB(start_x, top_y, end_x, bottom_y)
 
 
 class TriangularObstacle(PolyObstacle):
@@ -271,7 +270,7 @@ class TriangularObstacle(PolyObstacle):
         velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 0,
-        body_type: int = pymunk.Body.STATIC,
+        body_type: int = Body.STATIC,
         radius: float = 0,
     ):
         hb, hh = base / 2, height / 2
@@ -300,9 +299,7 @@ class Tunnel(Body):
         field: Optional[PotentialField] = None,
     ):
         moment = pymunk.moment_for_box(0, dimensions)
-        super().__init__(
-            position, field=field, moment=moment, body_type=pymunk.Body.STATIC
-        )
+        super().__init__(position, field=field, moment=moment, body_type=Body.STATIC)
         self.dimensions = Vec2d(*dimensions)
         self.orientation = self.Orient(orientation)
         self.thickness = thickness
@@ -316,16 +313,12 @@ class Tunnel(Body):
         self.segments = [pymunk.Segment(self, *seg, thickness) for seg in segments]
 
     def draw(self, screen: pygame.Surface) -> None:
-        if self.field is not None and self.field.draw_below:
-            self.field.draw(screen)
         for segment in self.segments:
             start_pos = Vec2d(*(self.position + segment.a)).int_tuple
             end_pos = Vec2d(*(self.position + segment.b)).int_tuple
             pygame.draw.line(
                 screen, Scheme.OBSTACLE, start_pos, end_pos, self.thickness
             )
-        if self.field is not None and not self.field.draw_below:
-            self.field.draw(screen)
 
     def _is_inside(self, coord: Vec2d) -> bool:
         """Check if a coordinate is inside the tunnel."""
@@ -335,7 +328,7 @@ class Tunnel(Body):
             and self.position.y - hd.y <= coord.y <= self.position.y + hd.y
         )
 
-    def _get_dimensions(self) -> Tuple[int, int, int, int]:
+    def _get_dimensions(self) -> pymunk.BB:
         """
         Get the bounding box dimensions of the tunnel.
         Returns (start_x, bottom_y, end_x, top_y).
@@ -494,11 +487,17 @@ class RepulsiveVirtualPeriphery(PotentialField):
         self.body = body
 
     def draw(self, screen: pygame.Surface) -> None:
-        points = []
+        points: List[Vec2d] = []
         for vertex in self.body.points:
             direction = (vertex - self.body.position).normalized()
             points.append(vertex + direction * self.d0)
-        pygame.draw.polygon(screen, Scheme.FIELD, points)
+        min_x, max_x = min(p.x for p in points), max(p.x for p in points)
+        min_y, max_y = min(p.y for p in points), max(p.y for p in points)
+        size = Vec2d(max_x - min_x, max_y - min_y).int_tuple
+        surface = pygame.Surface(size, pygame.SRCALPHA)
+        shifted_points = [(p.x - min_x, p.y - min_y) for p in points]
+        pygame.draw.polygon(surface, Scheme.FIELD, shifted_points)
+        screen.blit(surface, (min_x, min_y))
 
     def get_potential_field(self, coord: Vec2d) -> float:
         d = self._get_distance_to_boundary(coord)
@@ -614,7 +613,6 @@ class Scene:
             size[1] = self.size[1] or pygame.display.Info().current_h
             display_params = {"size": size, "flags": pygame.RESIZABLE}
         self.screen: pygame.Surface = pygame.display.set_mode(**display_params)
-        self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
 
         # Initialize the PyMunk space
         self.space = pymunk.Space()
@@ -717,7 +715,11 @@ class Scene:
                 if field.draw_below:
                     field.draw(self.screen)
             for body in self.bodies:
+                if body.field is not None and body.field.draw_below:
+                    body.field.draw(self.screen)
                 body.draw(self.screen)
+                if body.field is not None and not body.field.draw_below:
+                    body.field.draw(self.screen)
                 body.step()
             for field in self.fields:
                 if not field.draw_below:
