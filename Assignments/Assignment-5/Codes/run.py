@@ -6,11 +6,12 @@ Run the tasks
 from utils import (
     AttractiveField,
     Goal,
-    MovingObstacle,
+    MovingPointObstacle,
     PointRobot,
-    RepulsiveField,
+    RepulsiveRadialField,
+    RepulsiveVirtualPeriphery,
     Scene,
-    StaticObstacle,
+    TriangularObstacle,
     Tunnel,
     TunnelField,
 )
@@ -28,13 +29,15 @@ def main():
     goal.field = field_0
 
     # Task-2
-    obstacle_1 = StaticObstacle(position=(200, gy - 10), radius=8)
-    field_1 = RepulsiveField(k_r=10, d0=50, body=obstacle_1)
+    obstacle_1 = TriangularObstacle(
+        base=50, height=50, position=(200, gy - 10), radius=3
+    )
+    field_1 = RepulsiveVirtualPeriphery(k_r=10, d0=50, body=obstacle_1)
     obstacle_1.field = field_1
 
     # Task-3
-    obstacle_2 = MovingObstacle(position=(600, gy - 3), velocity=(-5, 0))
-    field_2 = RepulsiveField(k_r=10, d0=50, body=robot)
+    obstacle_2 = MovingPointObstacle(position=(600, gy - 3), velocity=(-5, 0))
+    field_2 = RepulsiveRadialField(k_r=10, d0=50, body=robot)
 
     def toggle_field_2():
         start = obstacle_1.position.x + field_1.d0 + field_2.d0 < robot.position.x

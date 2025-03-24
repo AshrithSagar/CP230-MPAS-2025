@@ -45,13 +45,12 @@ class Scheme:
 
 
 class PotentialField(ABC):
-    """Abstract base class for potential fields."""
+    """
+    Abstract base class for potential fields. \n
+    - `draw_below`: If True, the field is drawn below it's associated body, else above it.
+    """
 
     def __init__(self, draw_below: bool = True):
-        """
-        Initialize the potential field with the given parameters.
-        - `draw_below`: If True, the field is drawn below it's associated body, else above it.
-        """
         self.draw_below = draw_below
 
     @abstractmethod
@@ -74,7 +73,14 @@ class PotentialField(ABC):
 
 
 class Body(pymunk.Body, ABC):
-    """Abstract base class for rigid bodies in the simulation."""
+    """
+    Abstract base class for rigid bodies in the simulation. \n
+    Extends the PyMunk `Body` class with additional attributes and methods.
+    Not intended to be instantiated directly, use the derived classes preferably.
+    - `field`: Associated potential field for the body.
+    - `shape`: Body shape for collision detection.
+    - `body_type`: Type of the body (static, dynamic or kinematic).
+    """
 
     def __init__(
         self,
@@ -82,23 +88,14 @@ class Body(pymunk.Body, ABC):
         velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 0,
-        moment: float = pymunk.moment_for_circle(0, 0, 5),
+        moment: float = 0,
         body_type: int = pymunk.Body.DYNAMIC,
     ):
-        """
-        Initialize the rigid body with the given parameters.
-        - `position`: Initial position of the body.
-        - `velocity`: Initial velocity of the body.
-        - `field`: Associated potential field for the body.
-        - `mass`: Mass of the body.
-        - `moment`: Moment of inertia of the body.
-        - `body_type`: Type of the body (static, dynamic or kinematic).
-        """
         super().__init__(mass, moment, body_type)
         self.position = Vec2d(*position)  # Initial position
         self.velocity = Vec2d(*velocity)  # Initial velocity
-        self.field = field  # Associated potential field
-        self.shape: pymunk.Shape = None  # Body shape for collision detection
+        self.field = field
+        self.shape: pymunk.Shape = None
 
     @abstractmethod
     def draw(self, screen: pygame.Surface) -> None:
@@ -113,7 +110,37 @@ class Body(pymunk.Body, ABC):
         pass
 
 
-class Goal(Body):
+class PointBody(Body):
+    """
+    Represents a point body in the simulation. \n
+    A point body here is approximated as a circle with a small radius.
+    """
+
+    def __init__(
+        self,
+        scheme: Color,
+        position: Vec2d,
+        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        field: Optional[PotentialField] = None,
+        mass: float = 1,
+        body_type: int = pymunk.Body.DYNAMIC,
+        radius: float = 3,
+    ):
+        moment = pymunk.moment_for_circle(mass, 0, radius)
+        super().__init__(position, velocity, field, mass, moment, body_type)
+        self.scheme = scheme  # Body fill color
+        self.radius = radius
+        self.shape = pymunk.Circle(self, radius)
+
+    def draw(self, screen: pygame.Surface) -> None:
+        if self.field is not None and self.field.draw_below:
+            self.field.draw(screen)
+        pygame.draw.circle(screen, self.scheme, self.position.int_tuple, self.radius)
+        if self.field is not None and not self.field.draw_below:
+            self.field.draw(screen)
+
+
+class Goal(PointBody):
     """
     Represents a goal in the simulation. \n
     Attracts other bodies using an attractive potential field.
@@ -128,22 +155,14 @@ class Goal(Body):
         body_type: int = pymunk.Body.DYNAMIC,
         radius: float = 3,
     ):
-        moment = pymunk.moment_for_circle(mass, 0, radius)
-        super().__init__(position, velocity, field, mass, moment, body_type)
-        self.radius = radius
-        self.shape = pymunk.Circle(self, radius)
-
-    def draw(self, screen: pygame.Surface) -> None:
-        if self.field is not None and self.field.draw_below:
-            self.field.draw(screen)
-        pygame.draw.circle(screen, Scheme.GOAL, self.position.int_tuple, self.radius)
-        if self.field is not None and not self.field.draw_below:
-            self.field.draw(screen)
+        super().__init__(
+            Scheme.GOAL, position, velocity, field, mass, body_type, radius
+        )
 
 
-class Obstacle(Body):
+class PointObstacle(Body):
     """
-    Represents an obstacle in the simulation. \n
+    Represents an point obstacle in the simulation. \n
     Can be static or moving (dynamic or kinematic), and has a repulsive potential field.
     """
 
@@ -171,9 +190,9 @@ class Obstacle(Body):
             self.field.draw(screen)
 
 
-class StaticObstacle(Obstacle):
+class StaticPointObstacle(PointObstacle):
     """
-    Represents a static obstacle in the simulation. \n
+    Represents a static point obstacle in the simulation. \n
     A static obstacle does not move and has a repulsive potential field.
     """
 
@@ -188,9 +207,9 @@ class StaticObstacle(Obstacle):
         )
 
 
-class MovingObstacle(Obstacle):
+class MovingPointObstacle(PointObstacle):
     """
-    Represents a moving obstacle in the simulation. \n
+    Represents a moving point obstacle in the simulation. \n
     A moving obstacle has a velocity and can move around and interact with other bodies, fields and the environment.
     """
 
@@ -211,6 +230,55 @@ class MovingObstacle(Obstacle):
             moment,
             body_type=pymunk.Body.DYNAMIC,
             radius=radius,
+        )
+
+
+class PolyObstacle(Body):
+    """Represents a polygonal obstacle, defined by a list of vertices."""
+
+    def __init__(
+        self,
+        vertices: List[Union[Vec2, Vec2d]],
+        position: Union[Vec2, Vec2d],
+        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        field: Optional[PotentialField] = None,
+        mass: float = 0,
+        body_type: int = pymunk.Body.STATIC,
+        radius: float = 0,
+    ):
+        self.vertices = [Vec2d(*v) for v in vertices]
+        moment = pymunk.moment_for_poly(mass, self.vertices, radius=radius)
+        super().__init__(position, velocity, field, mass, moment, body_type=body_type)
+        self.radius = radius
+        self.shape: pymunk.Poly = pymunk.Poly(self, vertices, radius=radius)
+        self.points = [self.local_to_world(v) for v in self.shape.get_vertices()]
+
+    def draw(self, screen: pygame.Surface) -> None:
+        if self.field is not None and self.field.draw_below:
+            self.field.draw(screen)
+        pygame.draw.polygon(screen, Scheme.OBSTACLE, self.points)
+        if self.field is not None and not self.field.draw_below:
+            self.field.draw(screen)
+
+
+class TriangularObstacle(PolyObstacle):
+    """Represents a triangular obstacle, defined by three vertices."""
+
+    def __init__(
+        self,
+        base: float,
+        height: float,
+        position: Union[Vec2, Vec2d],
+        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        field: Optional[PotentialField] = None,
+        mass: float = 0,
+        body_type: int = pymunk.Body.STATIC,
+        radius: float = 0,
+    ):
+        hb, hh = base / 2, height / 2
+        self.vertices: List[Vec2] = [(-hb, hh), (hb, hh), (0, -hh)]
+        super().__init__(
+            self.vertices, position, velocity, field, mass, body_type, radius
         )
 
 
@@ -269,7 +337,7 @@ class Tunnel(Body):
         )
 
 
-class PointRobot(Body):
+class PointRobot(PointBody):
     """
     Represents a point robot in the simulation. \n
     The robot can move and interact with potential fields and other bodies.
@@ -284,18 +352,8 @@ class PointRobot(Body):
         vmax: float = 10,
         radius: float = 3,
     ):
-        moment = pymunk.moment_for_circle(mass, 0, radius)
-        super().__init__(position, velocity, field, mass, moment)
+        super().__init__(Scheme.ROBOT, position, velocity, field, mass, radius=radius)
         self.vmax = vmax  # Maximum horizontal velocity capability
-        self.radius = radius
-        self.shape = pymunk.Circle(self, radius)
-
-    def draw(self, screen: pygame.Surface) -> None:
-        if self.field is not None and self.field.draw_below:
-            self.field.draw(screen)
-        pygame.draw.circle(screen, Scheme.ROBOT, self.position.int_tuple, self.radius)
-        if self.field is not None and not self.field.draw_below:
-            self.field.draw(screen)
 
     def step(self) -> None:
         """Ensure robot's horizontal velocity does not exceed the maximum capable limit."""
@@ -309,12 +367,12 @@ class AttractiveField(PotentialField):
     Attracts bodies towards a source with a force proportional to the distance.
     """
 
-    def __init__(self, k_p: float, body: Optional[Body] = None):
+    def __init__(self, k_p: float, body: Optional[PointBody] = None):
         """
         Initialize the attractive field with the given parameters. \n
         The force field at a point `x` is given by `-k_p * (x - x0)`, where `x0` is the source position.
         - `k_p`: Proportional constant for the attractive force.
-        - `body`: The source body that exerts the attractive force.
+        - `body`: The point body that exerts the attractive force.
         """
         super().__init__()
         self.k_p = k_p
@@ -332,18 +390,14 @@ class AttractiveField(PotentialField):
         return -self.k_p * diff
 
 
-class RepulsiveField(PotentialField):
+class RepulsiveRadialField(PotentialField):
     """
     Represents a radial repulsive field in the simulation. \n
     Exerts a force on bodies within a certain radius (virtual periphery) around the source.
+    The source is modeled as a point body.
     """
 
-    def __init__(
-        self,
-        k_r: float,
-        d0: float,
-        body: Optional[Body] = None,
-    ):
+    def __init__(self, k_r: float, d0: float, body: Optional[PointBody] = None):
         """
         Initialize the repulsive field with the given parameters. \n
         The force field at a point `x` is given by `k_r * (1/d - 1/d0) * 1 / d^2`,
@@ -379,6 +433,73 @@ class RepulsiveField(PotentialField):
         if math.isnan(force_mag) or math.isnan(diff.length):
             return Vec2d.zero()
         return force_mag * diff.normalized()
+
+
+class RepulsiveVirtualPeriphery(PotentialField):
+    """
+    Represents a virtual periphery around a body in the simulation. \n
+    Exerts a repulsive force on bodies within a certain periphery around the source.
+    Mimics the shape of the body with a virtual periphery radius.
+    """
+
+    def __init__(self, k_r: float, d0: float, body: PolyObstacle):
+        """
+        Initialize the repulsive field with the given parameters. \n
+        The force field at a point `x` is given by `k_r * (1/d - 1/d0) * 1 / d^2`,
+        where `d` is the distance between `x` and the source position.
+        - `k_r`: Repulsion constant for the repulsive force.
+        - `d0`: Virtual periphery radius around the source.
+        - `body`: The source body that exerts the repulsive force.
+        """
+        super().__init__()
+        self.k_r = k_r
+        self.d0 = d0  # Virtual periphery radius
+        self.body = body
+
+    def draw(self, screen: pygame.Surface) -> None:
+        expanded_vertices = []
+        for vertex in self.body.points:
+            direction = (vertex - self.body.position).normalized()
+            expanded_vertices.append(vertex + direction * self.d0)
+        pygame.draw.polygon(screen, Scheme.FIELD, expanded_vertices)
+
+    def get_potential_field(self, coord: Vec2d) -> float:
+        d = self._get_distance_to_boundary(coord)
+        if d >= self.d0:
+            return 0.0
+        return 0.5 * self.k_r * (1 / d - 1 / self.d0) ** 2
+
+    def get_force_field(self, coord: Vec2d) -> Vec2d:
+        d = self._get_distance_to_boundary(coord)
+        if d >= self.d0 or d <= 1e-6:
+            return Vec2d.zero()
+        direction = (coord - self.body.position).normalized()
+        force_mag = self.k_r * (1 / d - 1 / self.d0) * (1 / d**2)
+        if math.isnan(force_mag) or math.isnan(direction.length):
+            return Vec2d.zero()
+        return force_mag * direction
+
+    def _get_distance_to_boundary(self, coord: Vec2d) -> float:
+        """Compute the closest distance from `coord` to the obstacle boundary."""
+
+        def _distance_to_segment(p: Vec2d, v1: Vec2d, v2: Vec2d) -> float:
+            """Compute the shortest distance from `p` to the segment (v1, v2)."""
+            segment = v2 - v1
+            ls = segment.get_length_sqrd()
+            if ls == 0:
+                return (p - v1).length  # `v1` and `v2` are the same point
+            # Project `p` onto the line segment
+            t = max(0, min(1, ((p - v1).dot(segment) / ls)))
+            projection = v1 + t * segment  # Closest point on segment
+            return (p - projection).length  # Distance from `p` to projection
+
+        points = self.body.points
+        min_d = float("inf")
+        for i in range(len(points)):
+            v1, v2 = points[i], (points[(i + 1) % len(points)])
+            d = _distance_to_segment(coord, v1, v2)
+            min_d = min(min_d, d)
+        return min_d
 
 
 class TunnelField(PotentialField):
@@ -543,16 +664,7 @@ class Scene:
             for func in self.pipeline:
                 func()
             self.apply_effects()
-
-            # Background and ground
             self.screen.fill(Scheme.BACKGROUND)
-            pygame.draw.line(
-                self.screen,
-                Scheme.GROUND,
-                (0, self.ground_y),
-                (self.screen.get_width(), self.ground_y),
-                width=1,
-            )
 
             # Draw bodies and fields
             for field in self.fields:
@@ -571,10 +683,17 @@ class Scene:
                 Scheme.BACKGROUND,
                 (
                     0,
-                    self.ground_y + 1,
+                    self.ground_y,
                     self.screen.get_width(),
                     self.screen.get_height() - self.ground_y,
                 ),
+            )
+            pygame.draw.line(
+                self.screen,
+                Scheme.GROUND,
+                (0, self.ground_y),
+                (self.screen.get_width(), self.ground_y),
+                width=1,
             )
 
             # Step the simulation
