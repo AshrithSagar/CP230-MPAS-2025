@@ -336,6 +336,16 @@ class Tunnel(Body):
             and self.position.y - hd.y <= coord.y <= self.position.y + hd.y
         )
 
+    def _get_dimensions(self) -> Tuple[int, int, int, int]:
+        """
+        Get the bounding box dimensions of the tunnel.
+        Returns (start_x, bottom_y, end_x, top_y).
+        """
+        hd = self.dimensions / 2
+        start = (self.position - hd).int_tuple
+        end = (self.position + hd).int_tuple
+        return (*start, *end)
+
 
 class PointRobot(PointBody):
     """

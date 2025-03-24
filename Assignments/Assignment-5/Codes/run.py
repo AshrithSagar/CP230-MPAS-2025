@@ -21,7 +21,7 @@ def main():
     scene = Scene(display_size=(1400, 400), elasticity=0.5, time_step=0.2, sub_steps=10)
     gy = scene.ground_y
 
-    robot = PointRobot(position=(10, gy - 300), mass=1, vmax=100)
+    robot = PointRobot(position=(10, gy - 300), mass=1, vmax=50)
 
     # Task-1
     goal = Goal(position=(1000, gy - 3))
@@ -50,9 +50,24 @@ def main():
                 scene.detach_effects(obstacle_2, [field_2])
 
     # Task-4
-    tunnel = Tunnel(position=(800, gy - 150), dimensions=(250, 100))
+    tunnel = Tunnel(position=(850, gy - 150), dimensions=(250, 100))
     field_3 = TunnelField(strength=100, body=tunnel)
-    tunnel.field = field_3
+
+    def navigate_tunnel():
+        start, _, end, top = tunnel._get_dimensions()
+        if start - 100 <= robot.position.x <= end:
+            if robot.position.y > tunnel.position.y:
+                robot.apply_force_at_local_point((0, -1e3))
+            if robot.position.x < tunnel.position.x:
+                robot._set_velocity(
+                    (min(robot.velocity.x + 1, robot.vmax), robot.velocity.y)
+                )
+            elif robot.position.x > tunnel.position.x:
+                robot._set_velocity(
+                    (max(robot.velocity.x - 1, robot.vmax), robot.velocity.y)
+                )
+            if robot.position.y < top - 10:
+                robot._set_velocity((robot.velocity.x, max(robot.velocity.y, 0)))
 
     # Task-5
     def toggle_goal_velocity():
@@ -67,8 +82,9 @@ def main():
                 robot._set_velocity((0, 0))
 
     scene.add_bodies([goal, obstacle_1, obstacle_2, tunnel, robot])
-    scene.attach_effects(robot, [field_0, field_1, field_3])
-    scene.add_pipelines([toggle_field_2, toggle_goal_velocity])
+    scene.attach_effects(robot, [field_0, field_1])
+    scene.add_fields([field_3])
+    scene.add_pipelines([toggle_field_2, navigate_tunnel, toggle_goal_velocity])
 
     stopping_condition = lambda: goal.position.x - 7 <= robot.position.x
     scene.render(stopping=stopping_condition, framerate=60)
