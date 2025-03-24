@@ -18,21 +18,19 @@ from utils import (
 
 
 def main():
-    scene = Scene(display_size=(1400, 400), elasticity=0.6, time_step=0.2, sub_steps=10)
+    scene = Scene(display_size=(1400, 400), elasticity=0.5, time_step=0.2, sub_steps=10)
     gy = scene.ground_y
 
     robot = PointRobot(position=(10, gy - 300), mass=1, vmax=100)
 
     # Task-1
     goal = Goal(position=(1000, gy - 3))
-    field_0 = AttractiveField(k_p=0.0005, body=goal)
+    field_0 = AttractiveField(k_p=0.001, body=goal)
     goal.field = field_0
 
     # Task-2
-    obstacle_1 = TriangularObstacle(
-        base=50, height=50, position=(200, gy - 10), radius=3
-    )
-    field_1 = RepulsiveVirtualPeriphery(k_r=10, d0=50, body=obstacle_1)
+    obstacle_1 = TriangularObstacle(base=70, height=60, position=(200, gy - 10))
+    field_1 = RepulsiveVirtualPeriphery(k_r=2e3, d0=50, body=obstacle_1)
     obstacle_1.field = field_1
 
     # Task-3
@@ -65,13 +63,13 @@ def main():
         end = goal.position.x <= robot.position.x
         if start and not end:
             if goal.velocity.length == 0:
-                goal._set_velocity((30, 0))
+                goal._set_velocity((25, 0))
         elif end:
             if goal.velocity.length > 0:
                 goal._set_velocity((0, 0))
                 robot._set_velocity((0, 0))
 
-    scene.add_bodies([robot, goal, obstacle_1, obstacle_2, tunnel])
+    scene.add_bodies([goal, obstacle_1, obstacle_2, tunnel, robot])
     scene.attach_effects(robot, [field_0, field_1, field_3])
     scene.add_pipelines([toggle_field_2, toggle_goal_velocity])
 
