@@ -21,7 +21,7 @@ def main():
     scene = Scene(display_size=(1400, 400), elasticity=0.5, time_step=0.2, sub_steps=10)
     gy = scene.ground_y
 
-    robot = PointRobot(position=(10, gy - 300), mass=1, vmax=50)
+    robot = PointRobot(position=(10, gy - 300), mass=1, vmax=40)
 
     # Task-1
     goal = Goal(position=(1000, gy - 3))
@@ -48,14 +48,15 @@ def main():
             if robot.field is not None:
                 robot.field = None
                 scene.detach_effects(obstacle_2, [field_2])
+                obstacle_2._set_velocity((0, 0))
 
     # Task-4
     tunnel = Tunnel(position=(850, gy - 150), dimensions=(250, 100))
     field_3 = TunnelField(strength=100, body=tunnel)
 
     def navigate_tunnel():
-        start, _, end, top = tunnel._get_dimensions()
-        if start - 100 <= robot.position.x <= end:
+        tunnel_start, _, tunnel_end, tunnel_top = tunnel._get_dimensions()
+        if tunnel_start - 100 <= robot.position.x <= tunnel_end:
             if robot.position.y > tunnel.position.y:
                 robot.apply_force_at_local_point((0, -1e3))
             if robot.position.x < tunnel.position.x:
@@ -63,19 +64,18 @@ def main():
                     (min(robot.velocity.x + 1, robot.vmax), robot.velocity.y)
                 )
             elif robot.position.x > tunnel.position.x:
-                robot._set_velocity(
-                    (max(robot.velocity.x - 1, robot.vmax), robot.velocity.y)
-                )
-            if robot.position.y < top - 10:
+                robot._set_velocity((max(robot.velocity.x - 1, 0), robot.velocity.y))
+            if robot.position.y < tunnel_top - 10:
                 robot._set_velocity((robot.velocity.x, max(robot.velocity.y, 0)))
 
     # Task-5
     def toggle_goal_velocity():
-        start = tunnel.position.x + tunnel.dimensions.x / 2 < robot.position.x
+        _, _, tunnel_end, _ = tunnel._get_dimensions()
+        start = tunnel_end - 20 < robot.position.x
         end = goal.position.x <= robot.position.x
         if start and not end:
             if goal.velocity.length == 0:
-                goal._set_velocity((25, 0))
+                goal._set_velocity((20, 0))
         elif end:
             if goal.velocity.length > 0:
                 goal._set_velocity((0, 0))
