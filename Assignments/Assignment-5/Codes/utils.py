@@ -14,35 +14,23 @@ import moviepy
 import pygame
 import pymunk
 import pymunk.pygame_util
+from pygame.color import Color
 from pymunk import Vec2d
 
 # Type aliases
 Vec2 = Tuple[float, float]
-Color = Tuple[int, int, int]
-
-
-class Colors:
-    """Predefined color constants."""
-
-    WHITE: Color = (255, 255, 255)
-    BLACK: Color = (0, 0, 0)
-    RED: Color = (255, 0, 0)
-    GREEN: Color = (0, 255, 0)
-    BLUE: Color = (0, 0, 255)
-    YELLOW: Color = (255, 255, 0)
-    PURPLE: Color = (255, 0, 255)
-    ORANGE: Color = (255, 165, 0)
 
 
 class Scheme:
     """Color scheme for different elements in the simulation."""
 
-    BACKGROUND = Colors.WHITE
-    GROUND = Colors.BLACK
-    GOAL = Colors.PURPLE
-    OBSTACLE = Colors.RED
-    ROBOT = Colors.BLUE
-    FIELD = (*Colors.YELLOW, 96)  # Semi-transparent yellow
+    BACKGROUND = Color("white")
+    GROUND = Color("black")
+    GOAL = Color("purple")
+    OBSTACLE = Color("red")
+    ROBOT = Color("blue")
+    FIELD = Color("yellow")
+    FIELD.a = 96  # Alpha
 
 
 class PotentialField(ABC):
@@ -51,8 +39,7 @@ class PotentialField(ABC):
     - `draw_below`: If True, the field is drawn below it's associated body, else above it.
     """
 
-    def __init__(self, draw_below: bool = True):
-        self.draw_below = draw_below
+    draw_below: bool = True
 
     @abstractmethod
     def draw(self, screen: pygame.Surface) -> None:
@@ -85,8 +72,8 @@ class Body(pymunk.Body, ABC):
 
     def __init__(
         self,
-        position: Union[Vec2, Vec2d],
-        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        position: Vec2,
+        velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 0,
         moment: float = 0,
@@ -125,7 +112,7 @@ class PointBody(Body):
         self,
         scheme: Color,
         position: Vec2d,
-        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
         body_type: int = pymunk.Body.DYNAMIC,
@@ -154,7 +141,7 @@ class Goal(PointBody):
     def __init__(
         self,
         position: Vec2d,
-        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
         body_type: int = pymunk.Body.STATIC,
@@ -180,8 +167,8 @@ class PointObstacle(Body):
 
     def __init__(
         self,
-        position: Union[Vec2, Vec2d],
-        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        position: Vec2,
+        velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 0,
         moment: float = 0,
@@ -210,7 +197,7 @@ class StaticPointObstacle(PointObstacle):
 
     def __init__(
         self,
-        position: Union[Vec2, Vec2d],
+        position: Vec2,
         field: Optional[PotentialField] = None,
         radius: float = 3,
     ):
@@ -227,8 +214,8 @@ class MovingPointObstacle(PointObstacle):
 
     def __init__(
         self,
-        position: Union[Vec2, Vec2d],
-        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        position: Vec2,
+        velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
         radius: float = 3,
@@ -250,9 +237,9 @@ class PolyObstacle(Body):
 
     def __init__(
         self,
-        vertices: List[Union[Vec2, Vec2d]],
-        position: Union[Vec2, Vec2d],
-        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        vertices: List[Vec2],
+        position: Vec2,
+        velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 0,
         body_type: int = pymunk.Body.STATIC,
@@ -280,8 +267,8 @@ class TriangularObstacle(PolyObstacle):
         self,
         base: float,
         height: float,
-        position: Union[Vec2, Vec2d],
-        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        position: Vec2,
+        velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 0,
         body_type: int = pymunk.Body.STATIC,
@@ -306,8 +293,8 @@ class Tunnel(Body):
 
     def __init__(
         self,
-        position: Union[Vec2, Vec2d],
-        dimensions: Union[Vec2, Vec2d],
+        position: Vec2,
+        dimensions: Vec2,
         orientation: Union[int, Orient] = Orient.HORIZONTAL,
         thickness: int = 3,
         field: Optional[PotentialField] = None,
@@ -367,8 +354,8 @@ class PointRobot(PointBody):
 
     def __init__(
         self,
-        position: Vec2d,
-        velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
+        position: Vec2,
+        velocity: Vec2 = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
         vmax: float = 10,
@@ -407,7 +394,6 @@ class AttractiveField(PotentialField):
         only_kp: bool = False,
         asymptotic_convergence: bool = False,
     ):
-        super().__init__()
         self.k_p = k_p
         self.k_v = k_v
         self.source = source
@@ -462,7 +448,6 @@ class RepulsiveRadialField(PotentialField):
     """
 
     def __init__(self, k_r: float, d0: float, body: Optional[PointBody] = None):
-        super().__init__()
         self.k_r = k_r
         self.d0 = d0  # Virtual periphery radius
         self.body = body
@@ -504,7 +489,6 @@ class RepulsiveVirtualPeriphery(PotentialField):
     """
 
     def __init__(self, k_r: float, d0: float, body: PolyObstacle):
-        super().__init__()
         self.k_r = k_r
         self.d0 = d0  # Virtual periphery radius
         self.body = body
@@ -561,7 +545,6 @@ class TunnelField(PotentialField):
     """
 
     def __init__(self, strength: float, body: Tunnel):
-        super().__init__()
         self.strength = strength
         self.body = body
 
