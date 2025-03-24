@@ -87,7 +87,7 @@ def main():
     scene.add_pipelines([toggle_field_2, navigate_tunnel, toggle_goal_velocity])
 
     stopping_condition = lambda: goal.position.x - 7 <= robot.position.x
-    scene.render(stopping=stopping_condition, framerate=60)
+    scene.render(stopping=stopping_condition, framerate=30, record=True)
 
 
 if __name__ == "__main__":

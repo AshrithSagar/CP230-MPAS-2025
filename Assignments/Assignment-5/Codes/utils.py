@@ -10,6 +10,7 @@ from enum import IntEnum
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+import moviepy
 import pygame
 import pymunk
 import pymunk.pygame_util
@@ -650,17 +651,24 @@ class Scene:
         self.pipeline.extend(funcs)
 
     def render(
-        self, stopping: Optional[Callable[[], bool]] = None, framerate: int = 60
+        self,
+        stopping: Optional[Callable[[], bool]] = None,
+        framerate: int = 60,
+        record: bool = False,
+        filename: str = "simulation.mp4",
     ) -> None:
         """
         Start the simulation and render the environment.
         Press `Esc` or close the window to stop the simulation.
         - `stopping`: Optional function that returns a bool. If True, the simulation will stop.
         - `framerate`: Frames per second for rendering the simulation.
+        - `record`: If True, the simulation will be recorded as a video.
+        - `filename`: Name/Path of the output video file.
         """
 
         running = True
         clock = pygame.time.Clock()
+        frames: List[pygame.surfarray.array3d] = []
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -705,9 +713,23 @@ class Scene:
                 width=1,
             )
 
+            if record:
+                frame = pygame.surfarray.array3d(self.screen)
+                frame = pygame.transform.rotate(
+                    pygame.surfarray.make_surface(frame), -90
+                )
+                frame = pygame.transform.flip(frame, True, False)  # Flip horizontally
+                frames.append(pygame.surfarray.array3d(frame))
+
             # Step the simulation
             for _ in range(self.sub_steps):
                 self.space.step(self.dt / self.sub_steps)
             pygame.display.flip()  # Update the display
             clock.tick(framerate)
+
+        # Export
+        if record and frames:
+            clip = moviepy.ImageSequenceClip(frames, fps=framerate)
+            clip.write_videofile(filename, codec="libx264", fps=framerate)
+
         pygame.quit()
