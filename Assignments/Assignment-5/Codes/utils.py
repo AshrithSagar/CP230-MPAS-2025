@@ -1,5 +1,5 @@
 """
-utils.py
+utils.py \n
 Utility classes for simulation of potential fields and bodies in a 2D environment.
 """
 
@@ -110,6 +110,10 @@ class Body(pymunk.Body, ABC):
         """Function to update any state variables of the body at each time step."""
         pass
 
+    def stop(self) -> None:
+        """Stop the body by setting the velocity to zero."""
+        self._set_velocity((0, 0))
+
 
 class PointBody(Body):
     """
@@ -153,12 +157,19 @@ class Goal(PointBody):
         velocity: Union[Vec2, Vec2d] = Vec2d.zero(),
         field: Optional[PotentialField] = None,
         mass: float = 1,
-        body_type: int = pymunk.Body.DYNAMIC,
+        body_type: int = pymunk.Body.STATIC,
+        vd: float = 10,
         radius: float = 3,
     ):
         super().__init__(
             Scheme.GOAL, position, velocity, field, mass, body_type, radius
         )
+        self.vd = vd  # Horizontal velocity when motion is enabled
+
+    def enable_motion(self) -> None:
+        """Enable motion for the goal."""
+        self.body_type = pymunk.Body.KINEMATIC
+        self._set_velocity((self.vd, 0))
 
 
 class PointObstacle(Body):
@@ -345,7 +356,7 @@ class Tunnel(Body):
         hd = self.dimensions / 2
         start = (self.position - hd).int_tuple
         end = (self.position + hd).int_tuple
-        return (*start, *end)
+        return pymunk.BB(*start, *end)
 
 
 class PointRobot(PointBody):
@@ -376,47 +387,81 @@ class AttractiveField(PotentialField):
     """
     Represents an radial attractive field in the simulation. \n
     Attracts bodies towards a source with a force proportional to the distance.
+    Additionally, a derivative term can be added to the force to stabilize the convergence. \n
+    The force field at a point `x` is given by `-k_p * (x - x0)`, where `x0` is the source position.
+    For stability, it is written as `-k_v * (x - m)`, where `v` is the body velocity, `m = k_p / k_v * (x0 - x)` and `gamma` is a convergence factor.
+    - `k_p`: Proportional constant for the attractive force.
+    - `k_v`: Derivative constant for the attractive force.
+    - `source`: The point body that exerts the attractive force.
+    - `body`: The body that is attracted towards the source, here the point robot.
+    - `only_kp`: If True, only the proportional term of the force is considered.
+    - `asymptotic_convergence`: If True, the attractive force will converge asymptotically to the source.
     """
 
-    def __init__(self, k_p: float, body: Optional[PointBody] = None):
-        """
-        Initialize the attractive field with the given parameters. \n
-        The force field at a point `x` is given by `-k_p * (x - x0)`, where `x0` is the source position.
-        - `k_p`: Proportional constant for the attractive force.
-        - `body`: The point body that exerts the attractive force.
-        """
+    def __init__(
+        self,
+        k_p: float,
+        k_v: float,
+        source: Optional[Goal],
+        body: Optional[PointRobot],
+        only_kp: bool = False,
+        asymptotic_convergence: bool = False,
+    ):
         super().__init__()
         self.k_p = k_p
+        self.k_v = k_v
+        self.source = source
         self.body = body
+        self.only_kp = only_kp
+        self._asymptotic_convergence = asymptotic_convergence
 
     def draw(self, screen: pygame.Surface) -> None:
         pass
 
     def get_potential_field(self, coord: Vec2d) -> float:
+        return 0.0
         diff = coord - self.body.position
         return 0.5 * self.k_p * diff.dot(diff)
 
     def get_force_field(self, coord: Vec2d) -> Vec2d:
-        diff = coord - self.body.position
-        return -self.k_p * diff
+        diff = coord - self.source.position
+        if self.only_kp:
+            return -self.k_p * diff
+        m = (self.k_p / self.k_v) * (-diff)
+        gamma = 1
+        if self._asymptotic_convergence:
+            gamma = min(1, self.body.vmax / m.length)
+        force = -self.k_v * (self.body.velocity - gamma * m)
+        return force
+
+    @property
+    def asymptotic_convergence(self) -> bool:
+        """
+        Convergence mode of the attractive field. \n
+        If True, the attractive force will converge asymptotically to the source,
+        by enabling the derivative term of the source in the force calculation.
+        """
+        return self._asymptotic_convergence
+
+    @asymptotic_convergence.setter
+    def asymptotic_convergence(self, value: bool) -> None:
+        """Set the convergence mode of the attractive field."""
+        self._asymptotic_convergence = value
 
 
 class RepulsiveRadialField(PotentialField):
     """
     Represents a radial repulsive field in the simulation. \n
     Exerts a force on bodies within a certain radius (virtual periphery) around the source.
-    The source is modeled as a point body.
+    The source is modeled as a point body. \n
+    The force field at a point `x` is given by `k_r * (1/d - 1/d0) * 1 / d^2`,
+    where `d` is the distance between `x` and the source position.
+    - `k_r`: Repulsion constant for the repulsive force.
+    - `d0`: Virtual periphery radius around the source.
+    - `body`: The source body that exerts the repulsive force.
     """
 
     def __init__(self, k_r: float, d0: float, body: Optional[PointBody] = None):
-        """
-        Initialize the repulsive field with the given parameters. \n
-        The force field at a point `x` is given by `k_r * (1/d - 1/d0) * 1 / d^2`,
-        where `d` is the distance between `x` and the source position.
-        - `k_r`: Repulsion constant for the repulsive force.
-        - `d0`: Virtual periphery radius around the source.
-        - `body`: The source body that exerts the repulsive force.
-        """
         super().__init__()
         self.k_r = k_r
         self.d0 = d0  # Virtual periphery radius
@@ -450,18 +495,15 @@ class RepulsiveVirtualPeriphery(PotentialField):
     """
     Represents a virtual periphery around a body in the simulation. \n
     Exerts a repulsive force on bodies within a certain periphery around the source.
-    Mimics the shape of the body with a virtual periphery radius.
+    Mimics the shape of the body with a virtual periphery radius. \n
+    The force field at a point `x` is given by `k_r * (1/d - 1/d0) * 1 / d^2`,
+    where `d` is the distance between `x` and the source position.
+    - `k_r`: Repulsion constant for the repulsive force.
+    - `d0`: Virtual periphery radius around the source.
+    - `body`: The source body that exerts the repulsive force.
     """
 
     def __init__(self, k_r: float, d0: float, body: PolyObstacle):
-        """
-        Initialize the repulsive field with the given parameters. \n
-        The force field at a point `x` is given by `k_r * (1/d - 1/d0) * 1 / d^2`,
-        where `d` is the distance between `x` and the source position.
-        - `k_r`: Repulsion constant for the repulsive force.
-        - `d0`: Virtual periphery radius around the source.
-        - `body`: The source body that exerts the repulsive force.
-        """
         super().__init__()
         self.k_r = k_r
         self.d0 = d0  # Virtual periphery radius
@@ -550,27 +592,23 @@ class Scene:
     Add the bodies in the scene using the `add_bodies()` method.
     Potential fields are automatically handled by the bodies if they are associated with them, if not they can be added using the `add_fields())` method.
     Pipeline functions can be added using the `add_pipelines()` method to perform additional operations at each time step, such as for toggling effects or for updating the states of the bodies.
+    - `display_size`: Size of the display window in pixels, or `"full"` for fullscreen.
+    - `elasticity`: Coefficient of restitution for collisions.
+    - `ground_y`: Y-coordinate of the ground level, or `None` to set it near the bottom of the display window.
+        The top-left corner is the origin `(0, 0)`, with positive y-axis pointing downwards.
+    - `time_step`: Time step for the simulation.
+    - `sub_steps`: Number of sub-steps per time step.
+        Increase this value for smoother simulations.
     """
 
     def __init__(
         self,
-        display_size: Union[Tuple[int, int], str] = "full",
+        display_size: Union[Tuple[Optional[int], Optional[int]], str] = "full",
         elasticity: float = 1.0,
         ground_y: Optional[int] = None,
         time_step: float = 0.1,
         sub_steps: int = 10,
     ):
-        """
-        Initialize the simulation environment with the given parameters.
-        - `display_size`: Size of the display window in pixels, or `"full"` for fullscreen.
-        - `elasticity`: Coefficient of restitution for collisions.
-        - `ground_y`: Y-coordinate of the ground level, or `None` to set it near the bottom of the display window.
-            The top-left corner is the origin `(0, 0)`, with positive y-axis pointing downwards.
-        - `time_step`: Time step for the simulation.
-        - `sub_steps`: Number of sub-steps per time step.
-            Increase this value for smoother simulations.
-        """
-
         self.size = display_size
         self.elasticity = elasticity  # Coefficient of restitution
         self.ground_y = ground_y  # Ground level
@@ -585,9 +623,13 @@ class Scene:
         # Initialize the Pygame window
         pygame.init()
         if self.size == "full":
-            display_params = {"size": (0, 0), "flags": pygame.FULLSCREEN}
+            display_params = {"flags": pygame.FULLSCREEN}
         elif isinstance(self.size, Tuple):
-            display_params = {"size": self.size, "flags": pygame.RESIZABLE}
+            # Default to display size if any dimension is not provided
+            size = [None, None]
+            size[0] = self.size[0] or pygame.display.Info().current_w
+            size[1] = self.size[1] or pygame.display.Info().current_h
+            display_params = {"size": size, "flags": pygame.RESIZABLE}
         self.screen: pygame.Surface = pygame.display.set_mode(**display_params)
         self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
 
@@ -604,6 +646,10 @@ class Scene:
         )
         self.ground.elasticity = self.elasticity
         self.space.add(self.ground)
+
+    def get_bbox(self) -> pymunk.BB:
+        """Get the bounding box of the simulation environment."""
+        return pymunk.BB(0, self.screen.get_height(), self.screen.get_width(), 0)
 
     def add_bodies(self, bodies: List[Body]) -> None:
         """Add bodies to the simulation environment."""
@@ -652,7 +698,7 @@ class Scene:
 
     def render(
         self,
-        stopping: Optional[Callable[[], bool]] = None,
+        stopping_condition: Optional[Callable[[], bool]] = None,
         framerate: int = 60,
         record: bool = False,
         filename: str = "simulation.mp4",
@@ -660,23 +706,23 @@ class Scene:
         """
         Start the simulation and render the environment.
         Press `Esc` or close the window to stop the simulation.
-        - `stopping`: Optional function that returns a bool. If True, the simulation will stop.
+        - `stopping_condition`: Optional function that returns a bool. If True, the simulation will stop.
         - `framerate`: Frames per second for rendering the simulation.
         - `record`: If True, the simulation will be recorded as a video.
         - `filename`: Name/Path of the output video file.
         """
 
-        running = True
+        running, completed = True, False
         clock = pygame.time.Clock()
         frames: List[pygame.surfarray.array3d] = []
-        while running:
+        while running and not completed:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     running = False
-            if stopping is not None and stopping():
-                running = False
+            if stopping_condition is not None and stopping_condition():
+                running, completed = False, True
 
             for func in self.pipeline:
                 func()
@@ -726,10 +772,10 @@ class Scene:
                 self.space.step(self.dt / self.sub_steps)
             pygame.display.flip()  # Update the display
             clock.tick(framerate)
+        pygame.quit()
 
         # Export
-        if record and frames:
+        if record and completed and frames:
             clip = moviepy.ImageSequenceClip(frames, fps=framerate)
             clip.write_videofile(filename, codec="libx264", fps=framerate)
-
-        pygame.quit()
+            clip.close()
