@@ -457,11 +457,11 @@ class RepulsiveVirtualPeriphery(PotentialField):
         self.body = body
 
     def draw(self, screen: pygame.Surface) -> None:
-        expanded_vertices = []
+        points = []
         for vertex in self.body.points:
             direction = (vertex - self.body.position).normalized()
-            expanded_vertices.append(vertex + direction * self.d0)
-        pygame.draw.polygon(screen, Scheme.FIELD, expanded_vertices)
+            points.append(vertex + direction * self.d0)
+        pygame.draw.polygon(screen, Scheme.FIELD, points)
 
     def get_potential_field(self, coord: Vec2d) -> float:
         d = self._get_distance_to_boundary(coord)
@@ -495,10 +495,9 @@ class RepulsiveVirtualPeriphery(PotentialField):
 
         points = self.body.points
         min_d = float("inf")
-        for i in range(len(points)):
-            v1, v2 = points[i], (points[(i + 1) % len(points)])
-            d = _distance_to_segment(coord, v1, v2)
-            min_d = min(min_d, d)
+        for i, v1 in enumerate(points):
+            v2 = points[(i + 1) % len(points)]
+            min_d = min(min_d, _distance_to_segment(coord, v1, v2))
         return min_d
 
 
