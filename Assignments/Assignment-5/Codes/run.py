@@ -35,22 +35,19 @@ def main():
 
     # Task-3
     obstacle_2 = MovingPointObstacle(position=(600, gy - 3), velocity=(-5, 0))
-    field_2 = RepulsiveRadialField(k_r=10, d0=50, body=robot)
+    field_2 = RepulsiveRadialField(k_r=1e7, d0=100, body=robot)
 
     def toggle_field_2():
         start = obstacle_1.position.x + field_1.d0 + field_2.d0 < robot.position.x
-        end = obstacle_2.position.x - field_2.d0 < robot.position.x
+        end = (obstacle_2.position.x - 7 < robot.position.x) or (robot.position.x > 600)
         if start and not end:
             if robot.field is None:
                 robot.field = field_2
-                scene.attach_effects(robot, [field_2])
                 scene.attach_effects(obstacle_2, [field_2])
         elif end:
             if robot.field is not None:
                 robot.field = None
-                scene.detach_effects(robot, [field_2])
                 scene.detach_effects(obstacle_2, [field_2])
-                robot._set_position((obstacle_2.position.x, robot.position.y))
 
     # Task-4
     tunnel = Tunnel(position=(800, gy - 150), dimensions=(250, 100))
