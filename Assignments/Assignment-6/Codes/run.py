@@ -17,7 +17,7 @@ def main():
     scene.add_bodies([robotA, robotB])
     scene.add_vos([voAB])
 
-    scene.render(framerate=240)
+    scene.render(framerate=240, record=True)
 
 
 if __name__ == "__main__":

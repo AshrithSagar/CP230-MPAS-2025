@@ -9,6 +9,7 @@ import random
 from typing import List, Optional
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+import moviepy
 import pygame
 import pymunk
 from pygame.color import Color
@@ -173,7 +174,12 @@ class Scene:
         """Add velocity obstacles to the simulation environment."""
         self.vos.extend(vos)
 
-    def render(self, framerate: int = 60) -> None:
+    def render(
+        self,
+        framerate: int = 60,
+        record: bool = False,
+        filename: str = "simulation.mp4",
+    ) -> None:
         """
         Start the simulation and render the environment.
         Press `Esc` or close the window to stop the simulation.
@@ -182,6 +188,7 @@ class Scene:
 
         running = True
         clock = pygame.time.Clock()
+        frames: List[pygame.surfarray.array3d] = []
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -195,9 +202,23 @@ class Scene:
             for body in self.bodies:
                 body.draw(self.screen)
 
+            if record:
+                frame = pygame.surfarray.array3d(self.screen)
+                frame = pygame.transform.rotate(
+                    pygame.surfarray.make_surface(frame), -90
+                )
+                frame = pygame.transform.flip(frame, True, False)  # Flip horizontally
+                frames.append(pygame.surfarray.array3d(frame))
+
             # Step the simulation
             for _ in range(self.sub_steps):
                 self.space.step(self.dt / self.sub_steps)
             pygame.display.flip()  # Update the display
             clock.tick(framerate)
         pygame.quit()
+
+        # Export
+        if record and frames:
+            clip = moviepy.ImageSequenceClip(frames, fps=framerate)
+            clip.write_videofile(filename, codec="libx264", fps=framerate, logger=None)
+            clip.close()
