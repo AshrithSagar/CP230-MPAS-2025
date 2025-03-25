@@ -3,19 +3,18 @@ utils.py \n
 Utility classes for velocity obstacle calculations.
 """
 
+import math
 import os
 import random
 from typing import List, Optional
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
-import numpy as np
 import pygame
 import pymunk
 from pygame.color import Color
 from pymunk import Vec2d
 
-random.seed(42)
-np.random.seed(42)
+random.seed(24233)
 
 
 class Scheme:
@@ -36,17 +35,17 @@ class Robot:
         radius: Optional[float] = None,
         mass: float = 1,
     ):
-        self.radius = radius or np.random.uniform(1, 5)
+        self.radius = radius or random.uniform(1, 5)
         moment = pymunk.moment_for_circle(mass, 0, self.radius)
         self.body = pymunk.Body(mass, moment)
         if position is not None:
             self.body.position = Vec2d(*position)
         else:
-            self.body.position = Vec2d(*np.random.uniform(0, 200, size=2))
+            self.body.position = Vec2d(random.uniform(0, 200), random.uniform(0, 200))
         if velocity is not None:
             self.body.velocity = Vec2d(*velocity)
         else:
-            speed, angle = np.random.uniform(10, 50), np.random.uniform(0, 2 * np.pi)
+            speed, angle = random.uniform(10, 50), random.uniform(0, 2 * math.pi)
             self.body.velocity = Vec2d(speed, 0).rotated(angle)
         self.color = Scheme.ROBOTS.pop()
         self.shape = pymunk.Circle(self.body, self.radius)
@@ -65,6 +64,74 @@ class Robot:
         )
 
 
+class VelocityObstacle:
+    """
+    Velocity obstacle for two robots to avoid collision. \n
+    The velocity obstacle is a cone that represents the possible velocities for robotA to avoid colliding with robotB.
+    """
+
+    def __init__(self, robotA: Robot, robotB: Robot):
+        self.robotA = robotA
+        self.robotB = robotB
+        self.radius_sum = robotA.radius + robotB.radius
+
+    @property
+    def rel_pos(self) -> Vec2d:
+        """Relative position of robotB with respect to robotA."""
+        return Vec2d(*(self.robotB.body.position - self.robotA.body.position))
+
+    @property
+    def rel_vel(self) -> Vec2d:
+        """Relative velocity of robotB with respect to robotA."""
+        return Vec2d(*(self.robotB.body.velocity - self.robotA.body.velocity))
+
+    def compute(self) -> List[Vec2d]:
+        """Compute the velocity obstacle for two robots."""
+        vo = []
+        d = self.rel_pos.length
+        if self.rel_vel.get_length_sqrd() < 1e-6:
+            return vo
+
+        # If already colliding, use a simple avoidance direction
+        if d < self.radius_sum:
+            vo.append(self.rel_vel.normalized())
+        else:
+            half_angle = math.asin(self.radius_sum / d)
+            base_direction = self.rel_pos.normalized()
+            tangent1 = base_direction.rotated(half_angle)
+            tangent2 = base_direction.rotated(-half_angle)
+            vo.extend([tangent1, tangent2])
+        return vo
+
+    def draw(self, screen: pygame.Surface):
+        """
+        Draw a filled translucent cone representing the velocity obstacle.
+        The cone is drawn with vertex at robotA's position and spanning the two tangent directions.
+        """
+        directions = self.compute()
+        if len(directions) < 2:
+            return
+
+        start = Vec2d(*self.robotA.body.position)
+        angles = [direction.angle % (2 * math.pi) for direction in directions]
+        angle1, angle2 = min(angles), max(angles)
+
+        # Sample intermediate points along the arc from angle1 to angle2.
+        arc_points, num_points = [], 30
+        length = self.rel_pos.length - self.robotB.radius
+        for i in range(num_points + 1):
+            theta = angle1 + (angle2 - angle1) * i / num_points
+            point = start + Vec2d(math.cos(theta), math.sin(theta)) * length
+            arc_points.append(point.int_tuple)
+
+        polygon_points = [start.int_tuple] + arc_points
+        color = self.robotB.color
+        color.a = Scheme.CONE_ALPHA
+        surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        pygame.draw.polygon(surface, color, polygon_points)
+        screen.blit(surface, (0, 0))
+
+
 class Scene:
     """Scene class to render the simulation environment."""
 
@@ -72,10 +139,13 @@ class Scene:
         self, time_step: float = 0.1, sub_steps: int = 10, scale: bool = False
     ):
         self.dt = time_step
-        self.sub_steps = sub_steps  # Number of sub-steps per time step
+        self.sub_steps = int(sub_steps)  # Number of sub-steps per time step
+
         self.bodies: List[Robot] = []
+        self.vos: List[VelocityObstacle] = []
 
         pygame.init()
+        pygame.display.set_caption("Velocity obstacles")
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE
         flags |= pygame.SCALED if scale else 0
         self.screen = pygame.display.set_mode((200, 200), flags)
@@ -89,15 +159,19 @@ class Scene:
         ]
         for border in borders:
             wall = pymunk.Segment(self.space.static_body, *border, 0)
-            wall.elasticity = 1
+            wall.elasticity = 1.0
             self.space.add(wall)
 
     def add_bodies(self, robots: List[Robot]) -> None:
         """Add bodies to the simulation environment."""
         for robot in robots:
-            robot.shape.elasticity = 1
+            robot.shape.elasticity = 1.0
             self.bodies.append(robot)
             self.space.add(robot.body, robot.shape)
+
+    def add_vos(self, vos: List[VelocityObstacle]) -> None:
+        """Add velocity obstacles to the simulation environment."""
+        self.vos.extend(vos)
 
     def render(self, framerate: int = 60) -> None:
         """
@@ -116,6 +190,8 @@ class Scene:
                     running = False
 
             self.screen.fill(Scheme.BACKGROUND)
+            for vo in self.vos:
+                vo.draw(self.screen)
             for body in self.bodies:
                 body.draw(self.screen)
 
