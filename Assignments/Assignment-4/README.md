@@ -8,6 +8,4 @@ Solve the Hamstrung squad game for a payoff of up to 10.
 
 Show the grid, initial Police location and the payoff values up to 10.
 
-Submit by 17th March, 8 pm.
-
 P.S. To better understand it, first try playing it against a friend, like a game of chess, without thinking about the optimality aspect!
