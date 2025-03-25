@@ -26,7 +26,7 @@ class Scheme:
     CONE_ALPHA = 96
 
 
-class Robot(pymunk.Body):
+class Robot:
     """Circular robot with a position, velocity, and radius."""
 
     def __init__(
@@ -38,33 +38,30 @@ class Robot(pymunk.Body):
     ):
         self.radius = radius or np.random.uniform(1, 5)
         moment = pymunk.moment_for_circle(mass, 0, self.radius)
-        super().__init__(mass, moment)
+        self.body = pymunk.Body(mass, moment)
         if position is not None:
-            self.position = Vec2d(*position)
+            self.body.position = Vec2d(*position)
         else:
-            self.position = Vec2d(*np.random.uniform(0, 200, size=2))
+            self.body.position = Vec2d(*np.random.uniform(0, 200, size=2))
         if velocity is not None:
-            self.velocity = Vec2d(*velocity)
+            self.body.velocity = Vec2d(*velocity)
         else:
             speed, angle = np.random.uniform(10, 50), np.random.uniform(0, 2 * np.pi)
-            self.velocity = Vec2d(speed, 0).rotated(angle)
+            self.body.velocity = Vec2d(speed, 0).rotated(angle)
         self.color = Scheme.ROBOTS.pop()
-        self.shape = pymunk.Circle(self, self.radius)
+        self.shape = pymunk.Circle(self.body, self.radius)
 
     def __repr__(self):
         return (
-            f"Robot(position={round(self.position.x, 2), round(self.position.y, 2)}, "
-            f"velocity={round(self.velocity.x, 2), round(self.velocity.y, 2)}, "
+            f"Robot(position={round(self.body.position.x, 2), round(self.body.position.y, 2)}, "
+            f"velocity={round(self.body.velocity.x, 2), round(self.body.velocity.y, 2)}, "
             f"radius={round(self.radius, 2)}"
         )
 
     def draw(self, screen: pygame.Surface) -> None:
         """Draw the robot on the screen."""
         pygame.draw.circle(
-            screen,
-            self.color,
-            self.position.int_tuple,
-            self.radius,
+            screen, self.color, Vec2d(*self.body.position).int_tuple, self.radius
         )
 
 
@@ -95,12 +92,12 @@ class Scene:
             wall.elasticity = 1
             self.space.add(wall)
 
-    def add_bodies(self, bodies: List[Robot]) -> None:
+    def add_bodies(self, robots: List[Robot]) -> None:
         """Add bodies to the simulation environment."""
-        for body in bodies:
-            body.shape.elasticity = 1
-            self.bodies.append(body)
-            self.space.add(body, body.shape)
+        for robot in robots:
+            robot.shape.elasticity = 1
+            self.bodies.append(robot)
+            self.space.add(robot.body, robot.shape)
 
     def render(self, framerate: int = 60) -> None:
         """
