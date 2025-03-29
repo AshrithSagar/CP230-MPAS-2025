@@ -1,5 +1,5 @@
 """
-run.py \n
+simulation/run.py \n
 Run the velocity obstacle calculation and plots
 """
 
