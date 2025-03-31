@@ -6,7 +6,6 @@ Plot the velocity obstacle calculations
 from typing import List, Tuple
 
 import matplotlib.pyplot as plt
-import moviepy
 import numpy as np
 from matplotlib.animation import FuncAnimation
 
@@ -158,7 +157,7 @@ class DynamicPlot:
 
         return scat_A, scat_B, quiv_A
 
-    def run(self, record: bool = False, output_file="animation.mp4"):
+    def run(self, record: bool = False, record_params={}):
         self.fig, self.ax = plt.subplots(figsize=(8, 6))
         self.ax.set_xlabel("X")
         self.ax.set_ylabel("Y")
@@ -203,11 +202,10 @@ class DynamicPlot:
         )
 
         if record:
-            anim.save(output_file, fps=30, extra_args=["-vcodec", "libx264"])
-            print(f"Animation saved to {output_file}")
-            clip = moviepy.VideoFileClip(output_file)
-            clip.write_videofile("processed_" + output_file, codec="libx264")
-            print(f"Processed video saved to processed_{output_file}")
+            file = record_params["filename"]
+            fps = record_params["fps"]
+            anim.save(file, fps=fps, extra_args=["-vcodec", "libx264"])
+            print(f"Animation saved to {file}")
         else:
             plt.show()
 
@@ -219,7 +217,13 @@ def main():
     scene = DynamicPlot(
         bodies=[robotA, robotB], avoid_times=[2, 5, 8], total_time=15, time_step=0.1
     )
-    scene.run(record=True, output_file="animation.mp4")
+    scene.run(
+        record=True,
+        record_params={
+            "filename": "animation.mp4",
+            "fps": 20,
+        },
+    )
 
 
 if __name__ == "__main__":
