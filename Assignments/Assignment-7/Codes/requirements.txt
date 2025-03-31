@@ -1,3 +1,5 @@
+matplotlib
 moviepy
+numpy
 pygame
 pymunk

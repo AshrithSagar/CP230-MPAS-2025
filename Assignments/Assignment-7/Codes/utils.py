@@ -1,5 +1,5 @@
 """
-simulation/utils.py \n
+utils.py \n
 Utility classes for velocity obstacle calculations.
 """
 

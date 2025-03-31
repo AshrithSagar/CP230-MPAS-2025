@@ -1,6 +1,6 @@
 """
-draw/run.py \n
-Draw the velocity obstacle calculation and plots
+plot.py \n
+Plot the velocity obstacle calculations
 """
 
 import matplotlib.pyplot as plt
