@@ -215,7 +215,10 @@ def main():
     robotB = Robot(position=(10, 2), radius=3, speed=1.5, circling_around=(10, 0))
 
     scene = DynamicPlot(
-        bodies=[robotA, robotB], avoid_times=[2, 5, 8], total_time=15, time_step=0.1
+        bodies=[robotA, robotB],
+        avoid_times=[3, 5, 8],
+        total_time=12,
+        time_step=0.1,
     )
     scene.run(
         record=True,
