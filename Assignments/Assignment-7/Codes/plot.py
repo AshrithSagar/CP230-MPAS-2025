@@ -53,9 +53,9 @@ class VelocityObstacle:
             np.arcsin(self.safety_radius / d) if d > self.safety_radius else np.pi / 2
         )
 
-    def plot_vo(self, ax, A, B, half_angle, color="gray"):
-        artists = []
+    def plot_vo(self, ax, A, B, half_angle, color="gray", alpha=0.4):
         """Plot the two boundary rays of the VO cone at point A with target B."""
+        lines = []
         D = B - A
         d = np.linalg.norm(D)
         angle_center = np.arctan2(D[1], D[0])
@@ -64,10 +64,14 @@ class VelocityObstacle:
             # Extend rays for visualization (1.5*d)
             ray = A.reshape(2, 1) + np.array([[np.cos(a)], [np.sin(a)]]) * d * 1.5
             (line,) = ax.plot(
-                [A[0], ray[0, 0]], [A[1], ray[1, 0]], color=color, linestyle="--"
+                [A[0], ray[0, 0]],
+                [A[1], ray[1, 0]],
+                color=color,
+                linestyle="--",
+                alpha=alpha,
             )
-            artists.append(line)
-            return artists
+            lines.append(line)
+        return lines
 
 
 class DynamicPlot:
