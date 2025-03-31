@@ -66,7 +66,12 @@ class VelocityObstacle:
 
 
 class DynamicPlot:
-    """Class to animate the simulation over time."""
+    """
+    Class to animate the simulation over time. \n
+    Initially, Robot A moves head-on toward Robot B.
+    At each time in avoid_times, a new avoidance velocity is chosen from the avoidance set and held until the next avoid time.
+    The VO cone is re-plotted at each time step.
+    """
 
     def __init__(
         self,
@@ -76,19 +81,24 @@ class DynamicPlot:
         time_step: float = 0.1,
     ):
         self.robotA, self.robotB = bodies
-        self.avoid_times = avoid_times
+        self.avoid_times = sorted(avoid_times)
         self.total_time = total_time
         self.dt = time_step
         self.times = np.arange(0, total_time, time_step)
         self.vo = VelocityObstacle(self.robotA, self.robotB)
         self.A_positions = [self.robotA.position.copy()]
         self.current_time = 0
+        self.next_avoid_index = 0
+        self.current_vA = None
+        self.vo_artists = []
 
     def compute_avoidance_velocity(self, A_pos, B_pos, vB):
         """
-        At each time step, compute robot A's desired velocity.
-        If the desired velocity (toward B) lies inside the VO cone, then
-        choose the boundary velocity. Otherwise, use the desired velocity.
+        Compute an avoidance velocity for Robot A based on current positions.
+        The desired (head-on) velocity is:
+             vA_des = speed * (B_pos - A_pos) / ||B_pos - A_pos||
+        If that velocity, when combined with B's velocity, falls inside the VO cone,
+        then choose a boundary velocity from the avoidance set.
         """
         D = B_pos - A_pos
         if np.linalg.norm(D) == 0:
@@ -96,12 +106,13 @@ class DynamicPlot:
         angle_D = np.arctan2(D[1], D[0])
         vA_des = self.robotA.speed * D / np.linalg.norm(D)
         half_angle = self.vo.half_angle(A_pos, B_pos)
-        # Compute relative desired velocity
+        # Compute the relative desired velocity.
         v_rel = vA_des - vB
         rel_angle = np.arctan2(v_rel[1], v_rel[0])
-        # Check if the difference between line-of-sight and relative velocity is within half_angle.
+        # If the relative velocity deviates from the line-of-sight by less than half_angle,
+        # then choose the boundary velocity.
         if abs(rel_angle - angle_D) < half_angle:
-            rel_angle_boundary = angle_D + half_angle  # Choose the boundary
+            rel_angle_boundary = angle_D + half_angle  # choose the upper boundary
             v_rel_boundary = self.robotA.speed * np.array(
                 [np.cos(rel_angle_boundary), np.sin(rel_angle_boundary)]
             )
@@ -110,60 +121,78 @@ class DynamicPlot:
             vA = vA_des
         return vA
 
-    def update(
-        self, frame, scat_A: plt.scatter, scat_B: plt.scatter, quiv_A: plt.quiver
-    ):
+    def update(self, frame, scat_A, scat_B, quiv_A):
         self.current_time += self.dt
 
-        # Update Robot B position on circle.
+        # Update Robot B's position (it is moving in a circle).
         theta = np.pi / 2 - self.robotB.omega * self.current_time
         B_pos = self.robotB.circular_position(theta)
         vB = self.robotB.velocity_at_theta(theta)
 
-        # Compute Robot A's avoidance velocity.
-        A_pos = self.A_positions[-1]
-        vA = self.compute_avoidance_velocity(A_pos, B_pos, vB)
+        # Determine Robot A's velocity:
+        # Until the first avoid time, use head-on (desired) velocity.
+        if (
+            self.next_avoid_index < len(self.avoid_times)
+            and self.current_time >= self.avoid_times[self.next_avoid_index]
+        ):
+            # At an avoid time, choose a new avoidance velocity.
+            A_current = self.A_positions[-1]
+            self.current_vA = self.compute_avoidance_velocity(A_current, B_pos, vB)
+            self.next_avoid_index += 1
+        elif self.current_vA is None:
+            # Before the first avoid time, use head-on velocity.
+            A_current = self.A_positions[-1]
+            D = B_pos - A_current
+            self.current_vA = self.robotA.speed * D / np.linalg.norm(D)
 
-        # Update Robot A's position.
-        new_A_pos = A_pos + vA * self.dt
+        # Use the current (piecewise constant) velocity.
+        A_current = self.A_positions[-1]
+        new_A_pos = A_current + self.current_vA * self.dt
         self.A_positions.append(new_A_pos)
 
         # Update scatter plots.
         scat_A.set_offsets(new_A_pos.reshape(1, -1))
         scat_B.set_offsets(B_pos.reshape(1, -1))
-        # Update quiver for Robot A's velocity vector.
         quiv_A.set_offsets(new_A_pos.reshape(1, -1))
-        quiv_A.set_UVC(vA[0], vA[1])
+        quiv_A.set_UVC(self.current_vA[0], self.current_vA[1])
+
+        # Always re-plot the VO:
+        # Remove old VO lines if they exist.
+        if self.vo_artists:
+            for artist in self.vo_artists:
+                artist.remove()
+        half_angle = self.vo.half_angle(new_A_pos, B_pos)
+        self.vo_artists = self.vo.plot_vo(self.ax, new_A_pos, B_pos, half_angle)
 
         return scat_A, scat_B, quiv_A
 
     def run(self):
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        ax.set_title("Simulation")
-        ax.axis("equal")
-        ax.grid(True)
+        self.fig, self.ax = plt.subplots(figsize=(8, 6))
+        self.ax.set_xlabel("X")
+        self.ax.set_ylabel("Y")
+        self.ax.set_title("Dynamic Simulation with Velocity Obstacles")
+        self.ax.axis("equal")
+        self.ax.grid(True)
 
         # Plot Robot B's circular path.
         theta_vals = np.linspace(0, 2 * np.pi, 200)
         circle_B = self.robotB.circling_around.reshape(
             2, 1
         ) + self.robotB.radius * np.array([np.cos(theta_vals), np.sin(theta_vals)])
-        ax.plot(circle_B[0, :], circle_B[1, :], "r--", alpha=0.5, label="B's path")
+        self.ax.plot(circle_B[0, :], circle_B[1, :], "r--", alpha=0.5, label="B's path")
 
         # Initial positions.
-        scat_A = ax.scatter(
+        scat_A = self.ax.scatter(
             self.A_positions[0][0],
             self.A_positions[0][1],
             color="blue",
             s=50,
             label="Robot A",
         )
-        theta0 = np.pi / 2  # initial theta for robot B
+        theta0 = np.pi / 2  # initial theta for Robot B
         B0 = self.robotB.circular_position(theta0)
-        scat_B = ax.scatter(B0[0], B0[1], color="red", s=50, label="Robot B")
-        quiv_A = ax.quiver(
+        scat_B = self.ax.scatter(B0[0], B0[1], color="red", s=50, label="Robot B")
+        quiv_A = self.ax.quiver(
             self.A_positions[0][0],
             self.A_positions[0][1],
             0,
@@ -172,10 +201,11 @@ class DynamicPlot:
             scale=1,
             scale_units="xy",
         )
-        ax.legend()
+
+        self.ax.legend()
 
         anim = FuncAnimation(
-            fig,
+            self.fig,
             self.update,
             fargs=(scat_A, scat_B, quiv_A),
             frames=len(self.times),
