@@ -1,16 +1,17 @@
 """
 simulation.py \n
-Run the velocity obstacle calculation and plots
+Simluate the velocity obstacle calculations
 """
 
 from utils import *
 
 
 def main():
-    scene = Scene(time_step=0.01, sub_steps=1e3, scale=True)
+    size = (600, 600)
+    scene = Scene(time_step=0.02, sub_steps=1e3, size=size, scale=True)
 
-    robotA = Robot(radius=3)
-    robotB = Robot(radius=4)
+    robotA = Robot(radius=5, size=size)
+    robotB = Robot(radius=10, size=size)
 
     voAB = VelocityObstacle(robotA, robotB)
 

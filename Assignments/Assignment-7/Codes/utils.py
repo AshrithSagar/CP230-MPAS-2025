@@ -6,7 +6,7 @@ Utility classes for velocity obstacle calculations.
 import math
 import os
 import random
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import moviepy
@@ -35,6 +35,7 @@ class Robot:
         velocity: Optional[Vec2d] = None,
         radius: Optional[float] = None,
         mass: float = 1,
+        size: Optional[Tuple[int, int]] = None,
     ):
         self.radius = radius or random.uniform(1, 5)
         moment = pymunk.moment_for_circle(mass, 0, self.radius)
@@ -42,7 +43,10 @@ class Robot:
         if position is not None:
             self.body.position = Vec2d(*position)
         else:
-            self.body.position = Vec2d(random.uniform(0, 200), random.uniform(0, 200))
+            self.body.position = Vec2d(
+                random.uniform(self.radius, size[0] - self.radius),
+                random.uniform(self.radius, size[1] - self.radius),
+            )
         if velocity is not None:
             self.body.velocity = Vec2d(*velocity)
         else:
@@ -137,10 +141,15 @@ class Scene:
     """Scene class to render the simulation environment."""
 
     def __init__(
-        self, time_step: float = 0.1, sub_steps: int = 10, scale: bool = False
+        self,
+        time_step: float = 0.1,
+        sub_steps: int = 10,
+        size: Tuple[int, int] = (600, 600),
+        scale: bool = False,
     ):
         self.dt = time_step
         self.sub_steps = int(sub_steps)  # Number of sub-steps per time step
+        self.size = size
 
         self.bodies: List[Robot] = []
         self.vos: List[VelocityObstacle] = []
@@ -149,14 +158,14 @@ class Scene:
         pygame.display.set_caption("Velocity obstacles")
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE
         flags |= pygame.SCALED if scale else 0
-        self.screen = pygame.display.set_mode((200, 200), flags)
+        self.screen = pygame.display.set_mode(size, flags)
         self.space = pymunk.Space()
         self.space.gravity = (0, 0)
         borders = [
-            ((0, 0), (200, 0)),
-            ((200, 0), (200, 200)),
-            ((200, 200), (0, 200)),
-            ((0, 200), (0, 0)),
+            ((0, 0), (size[0], 0)),
+            ((size[0], 0), (size[0], size[1])),
+            ((size[0], size[1]), (0, size[1])),
+            ((0, size[1]), (0, 0)),
         ]
         for border in borders:
             wall = pymunk.Segment(self.space.static_body, *border, 0)
