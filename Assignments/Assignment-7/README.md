@@ -9,3 +9,13 @@ Plot the trajectories of robots `A` and `B`.
 You may solve the problem graphically (but make sure it is to scale).
 
 Assume velocities, positions, time instances, etc., to be of reasonable values.
+
+## Run
+
+```shell
+pip install -r requirements.txt
+```
+
+```shell
+python3 plot.py
+```
