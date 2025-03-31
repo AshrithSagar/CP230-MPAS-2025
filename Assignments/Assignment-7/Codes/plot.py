@@ -212,7 +212,7 @@ class DynamicPlot:
 
 def main():
     robotA = Robot(position=(0, 0), radius=1, speed=2)
-    robotB = Robot(position=(10, 2), radius=3, speed=1.5, circling_around=(10, 0))
+    robotB = Robot(position=(10, 2), radius=5, speed=1.5, circling_around=(10, 0))
 
     scene = DynamicPlot(
         bodies=[robotA, robotB],
