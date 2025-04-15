@@ -3,7 +3,7 @@ run.py \n
 Run the BFS FIFO algorithm
 """
 
-from utils import bfs_fifo
+from utils import UndirectedGraph, bfs_fifo
 
 if __name__ == "__main__":
     # Adjacency list
@@ -15,7 +15,9 @@ if __name__ == "__main__":
         "I4": ["I3", "Z"],
         "I5": ["I", "I6"],
         "I6": ["I5", "W"],
+        "G": ["I6", "W"],
     }
+    graph = UndirectedGraph.from_dict(G)
 
-    order = bfs_fifo(G, start="I", goal="G")
+    order = bfs_fifo(graph, start="I", goal="G", verbose=True)
     print("Expansion order:", order)
