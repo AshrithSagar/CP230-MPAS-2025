@@ -4,6 +4,7 @@ Utility functions
 """
 
 import logging
+import random
 from collections import deque
 from typing import Deque, Dict, List, Optional, Set, TypeVar
 
@@ -51,7 +52,11 @@ class UndirectedGraph:
         self.nodes: Dict[NodeType, Node] = {}
 
     def __repr__(self) -> str:
-        return f"UndirectedGraph({self.nodes})"
+        _repr = "UndirectedGraph(\n"
+        for node_id, node in sorted(self.nodes.items(), key=lambda x: x[0]):
+            _repr += f"  {node_id}: {sorted([nbr.id for nbr in node.neighbors])}\n"
+        _repr += ")"
+        return _repr
 
     def __contains__(self, id: NodeType) -> bool:
         """
@@ -60,19 +65,6 @@ class UndirectedGraph:
         :return: True if the node exists, False otherwise.
         """
         return id in self.nodes
-
-    @classmethod
-    def from_dict(cls, graph_dict: GraphType) -> "UndirectedGraph":
-        """
-        Create an undirected graph from a dictionary. \n
-        :param graph_dict: A dictionary mapping nodes to lists of neighbors.
-        :return: An UndirectedGraph object.
-        """
-        graph = cls()
-        for node_id, neighbors in graph_dict.items():
-            for neighbor in neighbors:
-                graph.add_edge(node_id, neighbor)
-        return graph
 
     def add_node(self, id: NodeType) -> "Node":
         """
@@ -115,6 +107,55 @@ class UndirectedGraph:
         if node is None:
             return []
         return [nbr.id for nbr in node.neighbors]
+
+    def to_dict(self) -> GraphType:
+        """
+        Convert the graph to a dictionary representation. \n
+        :return: A dictionary mapping nodes to lists of neighbors.
+        """
+        graph_dict: GraphType = {}
+        for node_id, node in sorted(self.nodes.items(), key=lambda x: x[0]):
+            graph_dict[node_id] = sorted([nbr.id for nbr in node.neighbors])
+        return graph_dict
+
+    @classmethod
+    def from_dict(cls, graph_dict: GraphType) -> "UndirectedGraph":
+        """
+        Create an undirected graph from a dictionary. \n
+        :param graph_dict: A dictionary mapping nodes to lists of neighbors.
+        :return: An UndirectedGraph object.
+        """
+        graph = cls()
+        for node_id, neighbors in graph_dict.items():
+            for neighbor in neighbors:
+                graph.add_edge(node_id, neighbor)
+        return graph
+
+    @classmethod
+    def generate_random(
+        cls, num_nodes: int, max_neighbors: int = 3, seed: int = 42
+    ) -> "UndirectedGraph":
+        """
+        Generate a random undirected graph. \n
+        :param num_nodes: Total number of nodes in the graph.
+        :param max_neighbors: Max neighbors per node (edge density).
+        :param seed: Random seed for reproducibility.
+        :return: An UndirectedGraph object.
+        """
+        graph = cls()
+        random.seed(seed)
+        node_ids: List[NodeType] = list(range(num_nodes))
+
+        for node_id in node_ids:
+            graph.add_node(node_id)
+            num_edges = random.randint(1, max_neighbors)
+            possible_neighbors = [n for n in node_ids if n != node_id]
+            neighbors = random.sample(possible_neighbors, k=num_edges)
+
+            for nbr_id in neighbors:
+                graph.add_edge(node_id, nbr_id)
+
+        return graph
 
 
 def bfs_fifo(
