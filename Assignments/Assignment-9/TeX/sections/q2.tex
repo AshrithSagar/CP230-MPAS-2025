@@ -6,6 +6,8 @@ Using rotation matrices, prove that 2D rotation is commutative but 3D rotation i
 
 \subsection*{Solution}
 
+\subsubsection*{Commutativity of 2D Rotation Matrices}
+
 The 2D rotation matrix is represented by
 \begin{equation*}
     R(\theta) = \begin{bmatrix}
@@ -74,4 +76,97 @@ Similarly, expanding the right-hand side, we have
     R(\phi + \theta)
 \end{align*}
 
-Since \( R(\theta + \phi) = R(\phi + \theta) \), by the commutative property of addition, we have the commutative property of 2D rotation matrices \( R(\theta)R(\phi) = R(\phi)R(\theta) \), as required.
+Since \( R(\theta + \phi) = R(\phi + \theta) \), by the commutative property of addition, we have the \underline{commutative property of 2D rotation matrices} \( R(\theta)R(\phi) = R(\phi)R(\theta) \), as required.
+
+\subsubsection*{Non-Commutativity of 3D Rotation Matrices}
+
+The 3D rotation matrix is represented by Euler angles: yaw (represented by \( \alpha \) or \( \psi \)), pitch (\( \beta \) or \( \theta \)), and roll (\( \gamma \) or \( \phi \)).
+One such representation is the ZYX (or yaw-pitch-roll) convention, where the rotation matrix is given by
+\begin{align*}
+    R_{zyx}(\alpha, \beta, \gamma)
+     & =
+    R_z(\alpha)R_y(\beta)R_x(\gamma)
+    \\ & =
+    \begin{bmatrix}
+        c_{\alpha} c_{\beta} & c_{\alpha} s_{\beta} s_{\gamma} - s_{\alpha} c_{\gamma} & c_{\alpha} s_{\beta} c_{\gamma} + s_{\alpha} s_{\gamma} \\
+        s_{\alpha} c_{\beta} & s_{\alpha} s_{\beta} s_{\gamma} + c_{\alpha} c_{\gamma} & s_{\alpha} s_{\beta} c_{\gamma} - c_{\alpha} s_{\gamma} \\
+        -s_{\beta}           & c_{\beta} s_{\gamma}                                    & c_{\beta} c_{\gamma}
+    \end{bmatrix}
+\end{align*}
+where \( c_{\theta} = \cos(\theta) \) and \( s_{\theta} = \sin(\theta) \).
+
+To show that 3D rotation is not commutative, we can take two rotations about different axes and show that the order of multiplication matters.
+
+Let us consider two rotations: one about the Z-axis by angle \( \alpha \) and another about the Y-axis by angle \( \beta \).
+The rotation matrices, respectively, are
+\begin{align*}
+    R_z(\alpha) =
+    \begin{bmatrix}
+        c_{\alpha} & -s_{\alpha} & 0 \\
+        s_{\alpha} & c_{\alpha}  & 0 \\
+        0          & 0           & 1
+    \end{bmatrix}
+    , & \qquad
+    R_y(\beta) =
+    \begin{bmatrix}
+        c_{\beta}  & 0 & s_{\beta} \\
+        0          & 1 & 0         \\
+        -s_{\beta} & 0 & c_{\beta}
+    \end{bmatrix}
+\end{align*}
+Now, we can compute the product \( R_z(\alpha)R_y(\beta) \) as
+\begin{align*}
+    R_z(\alpha)R_y(\beta)
+     & =
+    \begin{bmatrix}
+        c_{\alpha} & -s_{\alpha} & 0 \\
+        s_{\alpha} & c_{\alpha}  & 0 \\
+        0          & 0           & 1
+    \end{bmatrix}
+    \begin{bmatrix}
+        c_{\beta}  & 0 & s_{\beta} \\
+        0          & 1 & 0         \\
+        -s_{\beta} & 0 & c_{\beta}
+    \end{bmatrix}
+    \\ & =
+    \begin{bmatrix}
+        c_{\alpha}c_{\beta} & -s_{\alpha}c_{\beta} + s_{\beta}          & c_{\alpha}s_{\beta} \\
+        s_{\alpha}c_{\beta} & c_{\alpha}s_{\beta} + s_{\alpha}s_{\beta} & s_{\alpha}s_{\beta} \\
+        -s_{\beta}          & 0                                         & c_{\beta}
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+        c_{\alpha}c_{\beta} & -s_{\alpha}c_{\beta} + s_{\beta}          & c_{\alpha}s_{\beta} \\
+        s_{\alpha}c_{\beta} & c_{\alpha}s_{\beta} + s_{\alpha}s_{\beta} & s_{\alpha}s_{\beta} \\
+        -s_{\beta}          & 0                                         & c_{\beta}
+    \end{bmatrix}
+\end{align*}
+Similarly, the product \( R_y(\beta)R_z(\alpha) \) is
+\begin{align*}
+    R_y(\beta)R_z(\alpha)
+     & =
+    \begin{bmatrix}
+        c_{\beta}  & 0 & s_{\beta} \\
+        0          & 1 & 0         \\
+        -s_{\beta} & 0 & c_{\beta}
+    \end{bmatrix}
+    \begin{bmatrix}
+        c_{\alpha} & -s_{\alpha} & 0 \\
+        s_{\alpha} & c_{\alpha}  & 0 \\
+        0          & 0           & 1
+    \end{bmatrix}
+    \\ & =
+    \begin{bmatrix}
+        c_{\beta}c_{\alpha} + s_{\beta}s_{\alpha}  & -c_{\beta}s_{\alpha} + s_{\beta}c_{\alpha} & s_{\beta} \\
+        0                                          & c_{\alpha}                                 & 0         \\
+        -s_{\beta}s_{\alpha} + c_{\beta}s_{\alpha} & -s_{\beta}s_{\alpha} + c_{\beta}s_{\alpha} & c_{\beta}
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+        c_{\beta}c_{\alpha} + s_{\beta}s_{\alpha}  & -c_{\beta}s_{\alpha} + s_{\beta}c_{\alpha} & s_{\beta} \\
+        0                                          & c_{\alpha}                                 & 0         \\
+        -s_{\beta}s_{\alpha} + c_{\beta}s_{\alpha} & -s_{\beta}s_{\alpha} + c_{\beta}s_{\alpha} & c_{\beta}
+    \end{bmatrix}
+\end{align*}
+As seen from above, these two products are not equal.
+The order of multiplication matters, and hence \underline{3D rotation is not commutative}.
