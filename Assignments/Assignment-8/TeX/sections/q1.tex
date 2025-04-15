@@ -16,3 +16,41 @@ For first 3--4 iterations, explain how the array is being populated and which no
 Give the steps for searching from initial state \(I\) to  goal state \(G\) using FIFO priority function.
 
 \subsection*{Solution}
+
+Starting BFS from node 0.
+
+\subsubsection*{Iteration 1}
+Active queue: [0] \\
+Explored set: \{\} \\
+Pop node 0. \\
+Neighbors of 0: 1, 7. \\
+Add 1 and 7 to queue. \\
+New queue: [1, 7] \\
+Explored: \{0\}
+
+\subsubsection*{Iteration 2}
+Active queue: [1, 7] \\
+Explored set: \{0\} \\
+Pop node 1. \\
+Neighbors of 1: 0, 2, 12, 16, 18. \\
+0 already explored. Add 2, 12, 16, 18 to queue. \\
+New queue: [7, 2, 12, 16, 18] \\
+Explored: \{0, 1\}
+
+\subsubsection*{Iteration 3}
+Active queue: [7, 2, 12, 16, 18] \\
+Explored set: \{0, 1\} \\
+Pop node 7. \\
+Neighbors of 7: 0, 3, 4, 12, 19. \\
+0 and 12 already seen. Add 3, 4, 19 to queue. \\
+New queue: [2, 12, 16, 18, 3, 4, 19] \\
+Explored: \{0, 1, 7\}
+
+\subsubsection*{Iteration 4}
+Active queue: [2, 12, 16, 18, 3, 4, 19] \\
+Explored set: \{0, 1, 7\} \\
+Pop node 2. \\
+Neighbors of 2: 1, 9, 10, 11. \\
+1 already explored. Add 9, 10, 11 to queue. \\
+New queue: [12, 16, 18, 3, 4, 19, 9, 10, 11] \\
+Explored: \{0, 1, 7, 2\}
