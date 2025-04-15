@@ -8,6 +8,6 @@ For first 3-4 iterations, explain how the array is being populated and which nod
 
 ![Tasks](./Files/fifo.png)
 
-Give the steps for searching from initial state $I$ to  goal state $G$ using FIFO priority function.
+Give the steps for searching from initial state $I$ to goal state $G$ using FIFO priority function.
 
 ---

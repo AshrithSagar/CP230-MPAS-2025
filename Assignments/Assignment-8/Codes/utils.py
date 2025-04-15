@@ -58,14 +58,6 @@ class UndirectedGraph:
         """
         return id in self.nodes
 
-    def __getitem__(self, id: NodeType) -> Optional["Node"]:
-        """
-        Get a node from the graph by its id. \n
-        :param id: The id of the node.
-        :return: The node object if it exists, or None if it doesn't.
-        """
-        return self.nodes.get(id, None)
-
     @classmethod
     def from_dict(cls, graph_dict: GraphType) -> "UndirectedGraph":
         """
@@ -101,6 +93,25 @@ class UndirectedGraph:
         node2 = self.add_node(id2)
         node1.add_neighbor(node2)
         node2.add_neighbor(node1)  # Undirected graph
+
+    def get_node(self, id: NodeType) -> Optional["Node"]:
+        """
+        Get a node from the graph by its id. \n
+        :param id: The id of the node.
+        :return: The node object if it exists, or None if it doesn't.
+        """
+        return self.nodes.get(id, None)
+
+    def get_neighbors(self, id: NodeType) -> List[NodeType]:
+        """
+        Get the neighbors of a node. \n
+        :param id: The id of the node.
+        :return: A list of neighbor ids.
+        """
+        node = self.get_node(id)
+        if node is None:
+            return []
+        return [nbr.id for nbr in node.neighbors]
 
 
 def bfs_fifo(
@@ -144,11 +155,8 @@ def bfs_fifo(
             break
 
         # Enqueue all unseen neighbors
-        node = graph[node_id]
-        if node is None:
-            continue
-        for nbr in node.neighbors:
-            if nbr not in explored and nbr not in queue:
-                queue.append(nbr.id)
+        for nbr_id in graph.get_neighbors(node_id):
+            if nbr_id not in explored and nbr_id not in queue:
+                queue.append(nbr_id)
 
     return expansion_order
