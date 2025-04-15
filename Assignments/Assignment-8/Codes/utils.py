@@ -3,12 +3,15 @@ utils.py \n
 Utility functions
 """
 
+import logging
 from collections import deque
 from typing import Deque, Dict, List, Optional, Set, TypeVar
 
+logger = logging.getLogger(__name__)
+
+
 NodeType = TypeVar("NodeType", str, int)
 """Type of the node in the graph"""
-
 
 GraphType = Dict[NodeType, List[NodeType]]
 """
@@ -122,23 +125,31 @@ def bfs_fifo(
     :param graph: The undirected graph to search.
     :param start: The starting node id.
     :param goal: The goal node id.
-    :param verbose: If True, print debug information.
+    :param verbose: If True, show detailed output.
     :return: A list of node ids in the order they were expanded.
     """
+    logging.basicConfig(
+        level=logging.INFO if verbose else logging.WARNING, format="%(message)s"
+    )
+    logger.info("Starting BFS FIFO search...")
+
     if start not in graph:
-        if verbose:
-            print("Start node not in graph!")
+        logging.info("Start node not in graph!")
         return []
     elif goal not in graph:
-        if verbose:
-            print("Goal node not in graph!")
+        logging.info("Goal node not in graph!")
         return []
 
     explored: Set[NodeType] = set()
     queue: Deque[NodeType] = deque([start])
     expansion_order: List[NodeType] = []
 
+    iteration = 0
     while queue:
+        iteration += 1
+        logging.info(f"Iteration {iteration}:")
+        logging.info(f"  Active nodes: {list(queue)}")
+        logging.info(f"  Explored nodes: {list(explored)}")
         node_id = queue.popleft()
         if node_id in explored:
             continue
@@ -146,17 +157,18 @@ def bfs_fifo(
         # Mark as explored
         explored.add(node_id)
         expansion_order.append(node_id)
-        if verbose:
-            print(f"Expanded: {node_id}")
+        logging.info(f"  Expanding node: {node_id}")
 
         if node_id == goal:  # If this is the goal, stop
-            if verbose:
-                print("Goal found!")
+            logging.info("Goal found!")
             break
 
         # Enqueue all unseen neighbors
+        additions = []
         for nbr_id in graph.get_neighbors(node_id):
             if nbr_id not in explored and nbr_id not in queue:
                 queue.append(nbr_id)
+                additions.append(nbr_id)
+        logging.info(f"  Populating queue with: {additions}")
 
     return expansion_order
