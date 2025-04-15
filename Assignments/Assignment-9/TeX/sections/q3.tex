@@ -7,3 +7,65 @@ Assume that \( \mathcal{A} \) is represented by a single, algebraic primitive, \
 Show that the transformed primitive is unchanged after any rotation is applied.
 
 \subsection*{Solution}
+
+We want to show that if we rotate the unit disk \( H = \{(x,y)\mid x^2+y^2\le1\} \) by any angle \( \theta \), the set of points remains the same. Equivalently, if we apply the rotation map
+\[
+    R_\theta(x,y)
+    =\begin{pmatrix}
+        \cos\theta & -\sin\theta \\[6pt]
+        \sin\theta & \cos\theta
+    \end{pmatrix}
+    \begin{pmatrix}x\\y\end{pmatrix},
+\]
+then
+\[
+    R_\theta(H)
+    =\{\,R_\theta(x,y)\mid x^2+y^2\le1\}
+    \;=\;H.
+\]
+which is what we want to show.
+
+Let \( (x,y)\in H \); then
+\[
+    x^2+y^2\;\le1.
+\]
+Apply the rotation \( R_\theta \), giving
+\[
+    (x',y') \;=\; R_\theta(x,y)
+    \;=\;
+    \bigl(x\cos\theta - y\sin\theta,\;x\sin\theta + y\cos\theta\bigr).
+\]
+Compute the squared norm of \( (x',y') \):
+\[
+    \begin{aligned}
+        {x'}^2 + {y'}^2
+         & = (x\cos\theta - y\sin\theta)^2 \;+\;(x\sin\theta + y\cos\theta)^2 \\[6pt]
+         & = x^2\cos^2\theta - 2xy\cos\theta\,\sin\theta + y^2\sin^2\theta
+        \;+\; x^2\sin^2\theta + 2xy\sin\theta\,\cos\theta + y^2\cos^2\theta   \\[6pt]
+         & = x^2(\cos^2\theta + \sin^2\theta)
+        + y^2(\sin^2\theta + \cos^2\theta)
+        + \bigl(-2xy\cos\theta\,\sin\theta + 2xy\sin\theta\,\cos\theta\bigr)  \\[6pt]
+         & = x^2 + y^2 + 0
+        \;=\; x^2 + y^2.
+    \end{aligned}
+\]
+Since \( x^2+y^2\le1 \), it follows that \( {x'}^2+{y'}^2\le1 \). Hence
+\[
+    R_\theta(x,y)\in H,
+\]
+so \( R_\theta(H)\subseteq H \).
+
+Conversely, given any \( (x',y') \) with \( {x'}^2+{y'}^2\le1 \), we can apply the inverse rotation \( R_{-\theta} \) to find \( (x,y)=R_{-\theta}(x',y') \). By the same computation,
+\[
+    x^2 + y^2 \;=\; {x'}^2 + {y'}^2 \;\le1,
+\]
+so \( (x,y)\in H \) and \( (x',y')=R_\theta(x,y) \). Thus every point of \( H \) arises as the rotation of some point in \( H \), giving
+\[
+    H\subseteq R_\theta(H).
+\]
+
+Combining the two inclusions,
+\[
+    R_\theta(H) \;=\; H,
+\]
+i.e.\ the \underline{transformed primitive is unchanged under any rotation}.
