@@ -5,3 +5,73 @@
 Using rotation matrices, prove that 2D rotation is commutative but 3D rotation is not.
 
 \subsection*{Solution}
+
+The 2D rotation matrix is represented by
+\begin{equation*}
+    R(\theta) = \begin{bmatrix}
+        \cos(\theta) & -\sin(\theta) \\
+        \sin(\theta) & \cos(\theta)
+    \end{bmatrix}
+\end{equation*}
+where \( \theta \) is the angle of rotation, and the rotation is performed counterclockwise about the origin.
+Commutativity of matrices means that the order of multiplication does not matter.
+In other words, if we have two angles \( \theta \) and \( \phi \), then
+\begin{equation*}
+    R(\theta)R(\phi) = R(\phi)R(\theta)
+\end{equation*}
+which is what we need to prove.
+
+Expanding the left-hand side, we get
+\begin{align*}
+    R(\theta)R(\phi)
+     & =
+    \begin{bmatrix}
+        \cos(\theta) & -\sin(\theta) \\
+        \sin(\theta) & \cos(\theta)
+    \end{bmatrix}
+    \begin{bmatrix}
+        \cos(\phi) & -\sin(\phi) \\
+        \sin(\phi) & \cos(\phi)
+    \end{bmatrix}
+    \\ & =
+    \begin{bmatrix}
+        \cos(\theta)\cos(\phi) - \sin(\theta)\sin(\phi) & -\cos(\theta)\sin(\phi) - \sin(\theta)\cos(\phi) \\
+        \sin(\theta)\cos(\phi) + \cos(\theta)\sin(\phi) & -\sin(\theta)\sin(\phi) + \cos(\theta)\cos(\phi)
+    \end{bmatrix}
+    \\ & =
+    \begin{bmatrix}
+        \cos(\theta + \phi) & -\sin(\theta + \phi) \\
+        \sin(\theta + \phi) & \cos(\theta + \phi)
+    \end{bmatrix}
+    =
+    R(\theta + \phi)
+\end{align*}
+where we used the angle addition formulas for sine and cosine.
+
+Similarly, expanding the right-hand side, we have
+\begin{align*}
+    R(\phi)R(\theta)
+     & =
+    \begin{bmatrix}
+        \cos(\phi) & -\sin(\phi) \\
+        \sin(\phi) & \cos(\phi)
+    \end{bmatrix}
+    \begin{bmatrix}
+        \cos(\theta) & -\sin(\theta) \\
+        \sin(\theta) & \cos(\theta)
+    \end{bmatrix}
+    \\ & =
+    \begin{bmatrix}
+        \cos(\phi)\cos(\theta) - \sin(\phi)\sin(\theta) & -\cos(\phi)\sin(\theta) - \sin(\phi)\cos(\theta) \\
+        \sin(\phi)\cos(\theta) + \cos(\phi)\sin(\theta) & -\sin(\phi)\sin(\theta) + \cos(\phi)\cos(\theta)
+    \end{bmatrix}
+    \\ & =
+    \begin{bmatrix}
+        \cos(\phi + \theta) & -\sin(\phi + \theta) \\
+        \sin(\phi + \theta) & \cos(\phi + \theta)
+    \end{bmatrix}
+    =
+    R(\phi + \theta)
+\end{align*}
+
+Since \( R(\theta + \phi) = R(\phi + \theta) \), by the commutative property of addition, we have the commutative property of 2D rotation matrices \( R(\theta)R(\phi) = R(\phi)R(\theta) \), as required.
