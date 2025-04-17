@@ -60,6 +60,27 @@ class GridMap:
                             break
         return F
 
+    def grid_state(self) -> Tuple[List[List[int]], List[Point]]:
+        """
+        Returns:
+        - state matrix: 0=unknown, 1=explored free, 2=frontier, 3=obstacle
+        - list of frontier points
+        """
+        N = self.N
+        front = set(self.frontiers())
+        state = [[0] * N for _ in range(N)]
+        for i in range(N):
+            for j in range(N):
+                if not self.free[i][j]:
+                    state[i][j] = 3
+                elif (i, j) in front:
+                    state[i][j] = 2
+                elif self.explored[i][j]:
+                    state[i][j] = 1
+                else:
+                    state[i][j] = 0
+        return state, list(front)
+
     def bfs(self, start: Point, goal: Point) -> List[Point]:
         """Return shortest path from start to goal (or [] if unreachable)."""
         if start == goal:
