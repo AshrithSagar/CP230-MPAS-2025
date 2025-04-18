@@ -3,30 +3,36 @@ run.py \n
 Run the co-ordination algorithm.
 """
 
+import logging
 import random
 from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import ListedColormap
-from utils import Coordinator, GridMap, Point, Robot
+from utils import Coordinator, GridMap, Robot
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 def main():
     # --- Setup ---
     # Random seed for reproducibility
-    random.seed(42)
-    np.random.seed(42)
+    seed = 42
+    random.seed(seed)
+    np.random.seed(seed)
+    logger.debug(f"Random seed: {seed}")
 
     # 40×40, 6 obstacles of ~10×10 => 100 cells each
     grid_map = GridMap(size=40, num_obstacles=6, obs_size=10)
-    start: Point = (0, 0)
-    robots = [Robot(1, start, 6), Robot(2, start, 6)]
+    robots = Robot.from_count(count=2, start=(0, 0), sensor_range=6)
     coord = Coordinator(grid_map, robots)
+    num_iterations = 10
 
     # Initial sensing
-    for r in robots:
-        grid_map.mark_explored(r.pos, r.sensor_range)
+    for robot in robots:
+        grid_map.mark_explored(robot.pos, robot.sensor_range)
 
     # Prepare figure once
     plt.ion()
@@ -40,7 +46,7 @@ def main():
     dots: List[plt.Line2D] = []  # Will hold robot markers
 
     # --- Animation loop ---
-    for t in range(1, 11):
+    for t in range(1, num_iterations + 1):
         coord.assign()
 
         # Update grid image
@@ -81,12 +87,15 @@ def main():
         fig.canvas.draw_idle()
         plt.pause(0.1)
 
-        # Now move robots and re‐sense
         # Each robot moves one step and re‑explores
-        for r in robots:
-            r.step()
-            grid_map.mark_explored(r.pos, r.sensor_range)
-        print(f"Step {t}: positions = {[r.pos for r in robots]}")
+        for robot in robots:
+            robot.step()
+            grid_map.mark_explored(robot.pos, robot.sensor_range)
+
+        logger.info(
+            f"Step {t}:\n"
+            f"  positions:  " + ", ".join(f"Robot {r.id}: {r.pos}" for r in robots)
+        )
 
     plt.ioff()
     plt.show()

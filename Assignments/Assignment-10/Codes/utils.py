@@ -5,6 +5,7 @@ Utility functions
 
 import random
 from collections import deque
+from enum import IntEnum
 from typing import Dict, Generator, List, Tuple
 
 Point = Tuple[int, int]
@@ -13,6 +14,12 @@ Point = Tuple[int, int]
 
 class GridMap:
     """Grid map with obstacles and explored areas."""
+
+    class CellState(IntEnum):
+        UNKNOWN = 0
+        EXPLORED = 1
+        FRONTIER = 2
+        OBSTACLE = 3
 
     def __init__(self, size: int, num_obstacles: int, obs_size: int):
         """
@@ -111,17 +118,15 @@ class GridMap:
         """
         N = self.N
         front = set(self.frontiers())
-        state = [[0] * N for _ in range(N)]
+        state = [[self.CellState.UNKNOWN.value] * N for _ in range(N)]
         for i in range(N):
             for j in range(N):
                 if not self.free[i][j]:
-                    state[i][j] = 3
+                    state[i][j] = self.CellState.OBSTACLE.value
                 elif (i, j) in front:
-                    state[i][j] = 2
+                    state[i][j] = self.CellState.FRONTIER.value
                 elif self.explored[i][j]:
-                    state[i][j] = 1
-                else:
-                    state[i][j] = 0
+                    state[i][j] = self.CellState.EXPLORED.value
         return state, list(front)
 
     def bfs(self, start: Point, goal: Point) -> List[Point]:
@@ -186,6 +191,18 @@ class Robot:
             # Advance by one cell
             self.pos = self.path[1]
             self.path.pop(0)
+
+    @classmethod
+    def from_count(cls, count: int, start: Point, sensor_range: int) -> List["Robot"]:
+        """
+        Create a list of robots with unique IDs.
+
+        :param count: Number of robots
+        :param start: Starting position (x, y)
+        :param sensor_range: Sensor range (in cells)
+        :return: List of Robot objects
+        """
+        return [cls(i + 1, start, sensor_range) for i in range(count)]
 
 
 class Coordinator:
