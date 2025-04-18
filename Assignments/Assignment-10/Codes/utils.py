@@ -21,7 +21,7 @@ Point = Tuple[int, int]
 """A point (x, y) in the grid"""
 
 
-def set_seed(seed: int) -> None:
+def set_seed(seed: int = 42) -> None:
     """
     Set the random seed for reproducibility.
 
@@ -61,7 +61,7 @@ class GridMap:
         :param num_obstacles: Number of block‐shaped obstacles
         :param obs_size: Size of each obstacle (obs_size x obs_size)
         """
-        self.N = grid_size
+        self.grid_size = grid_size
         self.free = [[True] * grid_size for _ in range(grid_size)]
         self.explored = [[False] * grid_size for _ in range(grid_size)]
 
@@ -81,7 +81,7 @@ class GridMap:
         :return: True if in bounds, False otherwise
         """
         x, y = p
-        return 0 <= x < self.N and 0 <= y < self.N
+        return 0 <= x < self.grid_size and 0 <= y < self.grid_size
 
     def is_free(self, p: Point) -> bool:
         """
@@ -93,9 +93,9 @@ class GridMap:
         x, y = p
         return self.free[x][y]
 
-    def neighbors(self, p: Point) -> Generator[Point, None, None]:
+    def get_free_neighbours(self, p: Point) -> Generator[Point, None, None]:
         """
-        Generate neighboring points (up, down, left, right).
+        Generate adjacent points of a given point that are free.
 
         :param p: Point (x, y)
         :return: Generator of neighboring points
@@ -121,45 +121,45 @@ class GridMap:
                 if self.in_bounds(q):
                     self.explored[q[0]][q[1]] = True
 
-    def frontiers(self) -> List[Point]:
+    def get_frontiers(self) -> List[Point]:
         """
         Returns a list of frontier points.
         A frontier point is an explored free cell with at least one unknown neighbor.
         """
-        F = []
-        for x in range(self.N):
-            for y in range(self.N):
+        frontiers = []
+        for x in range(self.grid_size):
+            for y in range(self.grid_size):
                 if self.explored[x][y] and self.free[x][y]:
                     # Check for unknown neighbor
                     for q in [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]:
                         if self.in_bounds(q) and not self.explored[q[0]][q[1]]:
-                            F.append((x, y))
+                            frontiers.append((x, y))
                             break
-        return F
+        return frontiers
 
-    def grid_state(self) -> Tuple[List[List[int]], List[Point]]:
+    def get_grid_state(self) -> List[List[int]]:
         """
-        Returns the state of the grid and the list of frontier points.
+        Returns the state of the grid.
         The state is represented as a matrix, as specified by the CellState enum.
 
-        :return: Tuple of grid state and list of frontier points
+        :return: 2D list representing the grid state
         """
-        N = self.N
-        front = set(self.frontiers())
+        N = self.grid_size
+        frontiers = set(self.get_frontiers())
         state = [[CellState.UNKNOWN.value[1]] * N for _ in range(N)]
         for i in range(N):
             for j in range(N):
                 if not self.free[i][j]:
                     state[i][j] = CellState.OBSTACLE.value[1]
-                elif (i, j) in front:
+                elif (i, j) in frontiers:
                     state[i][j] = CellState.FRONTIER.value[1]
                 elif self.explored[i][j]:
                     state[i][j] = CellState.EXPLORED.value[1]
                 else:
                     state[i][j] = CellState.UNKNOWN.value[1]
-        return state, list(front)
+        return state
 
-    def bfs(self, start: Point, goal: Point) -> List[Point]:
+    def get_shortest_path(self, start: Point, goal: Point) -> List[Point]:
         """
         Return shortest path from start to goal (or [] if unreachable).
         Performs a breadth-first search (BFS) to find the path.
@@ -170,22 +170,22 @@ class GridMap:
         """
         if start == goal:
             return [start]
-        q = deque([start])
+        queue = deque([start])
         prev: Dict[Point, Point] = {}
         visited = {start}
-        while q:
-            u = q.popleft()
-            for v in self.neighbors(u):
-                if v not in visited:
-                    visited.add(v)
-                    prev[v] = u
-                    if v == goal:
+        while queue:
+            node = queue.popleft()
+            for nbr in self.get_free_neighbours(node):
+                if nbr not in visited:
+                    visited.add(nbr)
+                    prev[nbr] = node
+                    if nbr == goal:
                         # Reconstruct
-                        path = [v]
+                        path = [nbr]
                         while path[-1] != start:
                             path.append(prev[path[-1]])
                         return list(reversed(path))
-                    q.append(v)
+                    queue.append(nbr)
         return []
 
 
@@ -204,6 +204,9 @@ class Robot:
         self.pos = start
         self.sensor_range = sensor_range
         self.path: List[Point] = []
+
+    def __str__(self) -> str:
+        return f"Robot {self.id}"
 
     def cost_to(self, pt: Point) -> int:
         """
@@ -270,28 +273,28 @@ class Coordinator:
         Each robot selects the best frontier to explore next.
         The assignment is greedy and one-by-one.
         """
-        F = self.grid.frontiers()
+        frontiers = self.grid.get_frontiers()
 
         # Initialize utilities if first step
-        for f in F:
-            self.U.setdefault(f, 1.0)
+        for frontier in frontiers:
+            self.U.setdefault(frontier, 1.0)
 
         # Greedy one‑by‑one
-        for r in self.robots:
+        for robot in self.robots:
             best, best_score = None, float("inf")
-            for f in F:
-                c = r.cost_to(f)
-                score = c - self.U[f]
+            for frontier in frontiers:
+                cost = robot.cost_to(frontier)
+                score = cost - self.U[frontier]
                 if score < best_score:
-                    best_score, best = score, f
+                    best_score, best = score, frontier
             if best is None:
                 continue
 
             # Plan path
-            r.path = self.grid.bfs(r.pos, best)
+            robot.path = self.grid.get_shortest_path(robot.pos, best)
 
             # Update utilities of other frontiers
-            for t in F:
+            for t in frontiers:
                 d = abs(best[0] - t[0]) + abs(best[1] - t[1])
                 self.U[t] -= self.P(d)
                 self.U[t] = max(self.U[t], 0.0)
@@ -317,17 +320,14 @@ class Scene:
         for robot in self.robots:
             self.grid_map.mark_explored(robot.pos, robot.sensor_range)
 
-        # Prepare figure once
+        # Prepare initial plot
         plt.ion()
-        self.fig, self.ax = plt.subplots(figsize=(6, 6))
+        self.fig, self.ax = plt.subplots(figsize=(7, 7))
         plt.tight_layout()
-        N = self.grid_map.N
+        grid_image = np.zeros((self.grid_map.grid_size, self.grid_map.grid_size))
         cmap = CellState.get_cmap()
-        self.im = self.ax.imshow(np.zeros((N, N)), origin="upper", cmap=cmap)
+        self.grid_image = self.ax.imshow(grid_image, origin="upper", cmap=cmap)
         self.robot_colors = plt.cm.tab10(np.linspace(0, 1, len(self.robots)))
-        self.texts: List[plt.Text] = []  # Utility texts
-        self.lines: List[plt.Line2D] = []  # Path lines
-        self.dots: List[plt.Line2D] = []  # Robot markers
 
     def render(
         self, num_iterations: int, delay: float = 0.1, close_after: bool = False
@@ -339,23 +339,29 @@ class Scene:
         :param delay: Delay between iterations (in seconds)
         :param close_after: If True, close the plot immediately after the simulation ends
         """
+        texts: List[plt.Text] = []  # Utility texts
+        lines: List[plt.Line2D] = []  # Path lines
+        dots: List[plt.Line2D] = []  # Robot markers
+
         for t in range(1, num_iterations + 1):
             self.coordinator.assign()
 
             # Update grid image
-            state, fronts = self.grid_map.grid_state()
-            self.im.set_data(np.array(state))
+            state = self.grid_map.get_grid_state()
+            self.grid_image.set_data(np.array(state))
 
             # Clear old annotations
-            for obj in self.texts + self.lines + self.dots:
+            for obj in texts + lines + dots:
                 obj.remove()
-            self.texts.clear()
-            self.lines.clear()
-            self.dots.clear()
+            texts.clear()
+            lines.clear()
+            dots.clear()
 
             # Draw utilities on frontiers
-            for x, y in fronts:
-                u = self.coordinator.U.get((x, y), 0.0)
+            frontiers = self.grid_map.get_frontiers()
+            for frontier in frontiers:
+                x, y = frontier
+                u = self.coordinator.U.get(frontier, 0.0)
                 txt = self.ax.text(
                     y,
                     x,
@@ -365,7 +371,7 @@ class Scene:
                     fontsize=6,
                     color="black",
                 )
-                self.texts.append(txt)
+                texts.append(txt)
 
             for robot, color in zip(self.robots, self.robot_colors):
                 # Plot the entire path history
@@ -374,11 +380,11 @@ class Scene:
 
                 # Plot the current position
                 px, py = robot.pos
-                (dot,) = self.ax.plot(py, px, "o", label=f"R{robot.id}", color=color)
-                self.dots.append(dot)
+                (dot,) = self.ax.plot(py, px, "o", label=robot, color=color)
+                dots.append(dot)
 
             self.ax.set_title(f"Iteration {t}")
-            self.ax.legend(loc="upper right", fontsize=8)
+            self.ax.legend(loc="best", fontsize=8)
             self.ax.set_xticks([])
             self.ax.set_yticks([])
 
@@ -391,9 +397,8 @@ class Scene:
                 self.grid_map.mark_explored(robot.pos, robot.sensor_range)
 
             logger.info(
-                f"Step {t}:\n"
-                f"  positions:  "
-                + ", ".join(f"Robot {r.id}: {r.pos}" for r in self.robots)
+                f"Iteration {t}:\n  Positions:  "
+                + ", ".join(f"{r}: {r.pos}" for r in self.robots)
             )
 
         plt.ioff()
