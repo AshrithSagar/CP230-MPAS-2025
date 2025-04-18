@@ -374,6 +374,7 @@ class Scene:
         close_after: bool = False,
         record: bool = False,
         fps: int = 24,
+        dpi: int = 100,
         save_file: str = "simulation.mp4",
     ) -> "Scene":
         """
@@ -384,6 +385,7 @@ class Scene:
         :param close_after: If True, close the plot immediately after the simulation ends; default False
         :param record: If True, record the simulation as a video; default False
         :param fps: Frames per second for the video; default 24
+        :param dpi: Dots per inch for the video; default 100
         :param save_file: Filename to save the video; default "simulation.mp4"
         :return: The Scene instance
         """
@@ -396,7 +398,7 @@ class Scene:
         writer = None
         if record:
             writer = FFMpegWriter(fps=int(fps), metadata={"title": "Simulation"})
-            writer.setup(self.fig, save_file, dpi=100)
+            writer.setup(self.fig, save_file, dpi=dpi)
 
         for t in range(1, num_iterations + 1):
             self.coordinator.assign()
