@@ -4,6 +4,7 @@ Run the co-ordination algorithm.
 """
 
 import random
+from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,12 +31,13 @@ def main():
     # Prepare figure once
     plt.ion()
     fig, ax = plt.subplots(figsize=(6, 6))
+    # 0=unknown, 1=explored, 2=frontier, 3=obstacle
     cmap = ListedColormap(["lightgray", "white", "yellow", "dimgray"])
-    im = ax.imshow(np.zeros((grid_map.N, grid_map.N)), origin="lower", cmap=cmap)
+    im = ax.imshow(np.zeros((grid_map.N, grid_map.N)), origin="upper", cmap=cmap)
     robot_colors = plt.cm.tab10(np.linspace(0, 1, len(robots)))
-    texts = []  # Will hold utility‐labels
-    lines = []  # Will hold path lines
-    dots = []  # Will hold robot markers
+    texts: List[plt.Text] = []  # Will hold utility texts
+    lines: List[plt.Line2D] = []  # Will hold path lines
+    dots: List[plt.Line2D] = []  # Will hold robot markers
 
     # --- Animation loop ---
     for t in range(1, 11):
@@ -62,10 +64,10 @@ def main():
 
         # Draw each robot’s planned path and current position
         for r, color in zip(robots, robot_colors):
-            if len(r.path) > 1:
-                xs, ys = zip(*r.path)
-                (ln,) = ax.plot(ys, xs, "--", linewidth=1, color=color)
-                lines.append(ln)
+            # Plot the entire path history
+            xs, ys = zip(*[r.pos] + r.path)
+            ax.plot(ys, xs, "-", linewidth=1, color=color, alpha=0.6)  # Persistent path
+            # Plot the current position
             px, py = r.pos
             (dot,) = ax.plot(py, px, "o", label=f"R{r.id}", color=color)
             dots.append(dot)
@@ -77,7 +79,7 @@ def main():
 
         # Draw & pause (non‐blocking)
         fig.canvas.draw_idle()
-        plt.pause(0.5)
+        plt.pause(0.1)
 
         # Now move robots and re‐sense
         # Each robot moves one step and re‑explores
