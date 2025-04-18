@@ -15,7 +15,7 @@ def main():
 
     scene = Scene(grid_map, robots)
     scene.setup()
-    scene.render(num_iterations=100, delay=1e-2, close_after=False)
+    scene.render(num_iterations=100, delay_interval=1e-2, close_after=False)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ import logging
 import random
 from collections import deque
 from enum import Enum
-from typing import Dict, Generator, List, Tuple
+from typing import Dict, Generator, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -57,13 +57,15 @@ class CellState(Enum):
 class GridMap:
     """Grid map with obstacles and explored areas."""
 
-    def __init__(self, grid_size: int, num_obstacles: int, obstacle_size: int) -> None:
+    def __init__(
+        self, grid_size: int = 40, num_obstacles: int = 6, obstacle_size: int = 3
+    ) -> None:
         """
         Initialize grid map with given size and number of obstacles.
 
-        :param grid_size: Size of the grid (N x N)
-        :param num_obstacles: Number of block‐shaped obstacles
-        :param obs_size: Size of each obstacle (obs_size x obs_size)
+        :param grid_size: Size of the grid (N x N); default 40
+        :param num_obstacles: Number of block‐shaped obstacles; default 6
+        :param obs_size: Size of each obstacle (obs_size x obs_size); default 3
         """
         self.grid_size = grid_size
         self.free = [[True] * grid_size for _ in range(grid_size)]
@@ -202,17 +204,28 @@ class GridMap:
 class Robot:
     """Robot with a sensor range and a path to follow."""
 
-    def __init__(self, id: int, start: Point, sensor_range: int) -> None:
+    def __init__(
+        self,
+        id: Optional[int] = None,
+        start: Point = (0, 0),
+        sensor_range: int = 6,
+        color: Optional[Tuple[float, float, float]] = None,
+    ) -> None:
         """
         Initialize robot with ID, start position, and sensor range.
 
-        :param id: Robot ID
-        :param start: Starting position (x, y)
-        :param sensor_range: Sensor range (in cells)
+        :param id: Robot ID. If not provided, a random ID is generated.
+        :param start: Starting position (x, y); default (0, 0)
+        :param sensor_range: Sensor range (in cells); default 6
         """
+        if id is None:
+            id = random.randint(1, 1000)
         self.id = id
         self.pos = start
         self.sensor_range = sensor_range
+        if color is None:
+            color = np.random.rand(3)
+        self.color = color
         self.path: List[Point] = []
         self.history: List[Point] = [start]
 
@@ -238,16 +251,20 @@ class Robot:
             self.history.append(self.pos)
 
     @classmethod
-    def from_count(cls, count: int, start: Point, sensor_range: int) -> List["Robot"]:
+    def from_count(
+        cls, count: int = 2, start: Point = (0, 0), sensor_range: int = 6
+    ) -> List["Robot"]:
         """
-        Create a list of robots with unique IDs.
+        Create a list of robots with unique IDs and random colors.
+        All robots start at the same position and have the same sensor range.
 
-        :param count: Number of robots
-        :param start: Starting position (x, y)
-        :param sensor_range: Sensor range (in cells)
+        :param count: Number of robots; default 2
+        :param start: Starting position (x, y); default (0, 0)
+        :param sensor_range: Sensor range (in cells); default 6
         :return: List of Robot objects
         """
-        return [cls(i + 1, start, sensor_range) for i in range(count)]
+        colors = plt.cm.tab10(np.linspace(0, 1, count))
+        return [cls(i + 1, start, sensor_range, tuple(colors[i])) for i in range(count)]
 
 
 class Coordinator:
@@ -336,28 +353,31 @@ class Scene:
         plt.ion()
         self.fig, self.ax = plt.subplots(figsize=(7, 7))
         plt.tight_layout()
-        grid_size = self.grid_map.grid_size
-        plt.xlim(-1, grid_size)
-        plt.ylim(grid_size, -1)
-        cmap = CellState.get_cmap()
+        plt.xlim(-1, self.grid_map.grid_size)
+        plt.ylim(self.grid_map.grid_size, -1)
         state, alpha = self.grid_map.get_grid_state()
-        self.grid_image = self.ax.imshow(state, origin="upper", cmap=cmap, alpha=alpha)
-        self.robot_colors = plt.cm.tab10(np.linspace(0, 1, len(self.robots)))
+        self.grid_image = self.ax.imshow(
+            state, origin="upper", alpha=alpha, cmap=CellState.get_cmap(), zorder=1
+        )
 
     def render(
-        self, num_iterations: int, delay: float = 0.1, close_after: bool = False
+        self,
+        num_iterations: int = 100,
+        delay_interval: float = 0.1,
+        close_after: bool = False,
     ) -> None:
         """
         Run the simulation for a specified number of iterations.
 
-        :param num_iterations: Number of iterations to run
-        :param delay: Delay between iterations (in seconds)
-        :param close_after: If True, close the plot immediately after the simulation ends
+        :param num_iterations: Number of iterations to run; default 100
+        :param delay_interval: Delay between iterations (in seconds) to ensure plot updates; default 0.1
+        :param close_after: If True, close the plot immediately after the simulation ends; default False
         """
         texts: List[plt.Text] = []  # Utility texts
         lines: List[plt.Line2D] = []  # Path lines
         dots: List[plt.Line2D] = []  # Robot markers
         circles: List[Circle] = []  # Sensor range circles
+        obstacles: List[plt.Rectangle] = []  # Obstacles
 
         for t in range(1, num_iterations + 1):
             self.coordinator.assign()
@@ -367,13 +387,24 @@ class Scene:
             self.grid_image.set_data(state)
             self.grid_image.set_alpha(alpha)
             self.grid_image.autoscale()
+            self.grid_image.set_zorder(1)
 
             # Clear old annotations
-            objs: List[List[plt.Artist]] = [texts, lines, dots, circles]
+            objs: List[List[plt.Artist]] = [texts, lines, dots, circles, obstacles]
             for obj in objs:
                 for el in obj:
                     el.remove()
                 obj.clear()
+
+            # Draw obstacles
+            for i in range(self.grid_map.grid_size):
+                for j in range(self.grid_map.grid_size):
+                    if not self.grid_map.free[i][j]:
+                        rect = plt.Rectangle(
+                            (j - 0.5, i - 0.5), 1, 1, color="dimgray", zorder=5
+                        )
+                        self.ax.add_patch(rect)
+                        obstacles.append(rect)
 
             # Draw utilities on frontiers
             frontiers = self.grid_map.get_frontiers()
@@ -387,20 +418,23 @@ class Scene:
                     va="center",
                     fontsize=6,
                     color="black",
+                    zorder=3,
                 )
                 texts.append(txt)
 
-            for robot, color in zip(self.robots, self.robot_colors):
+            for robot in self.robots:
                 # Plot the path history
                 xs, ys = zip(*robot.history)
                 (line,) = self.ax.plot(
-                    *(ys, xs), "-", linewidth=1, color=color, alpha=0.5
+                    *(ys, xs), "-", linewidth=1, color=robot.color, alpha=0.5, zorder=2
                 )
                 lines.append(line)
 
                 # Plot the current position
                 px, py = robot.pos
-                (dot,) = self.ax.plot(py, px, "o", label=robot, color=color)
+                (dot,) = self.ax.plot(
+                    py, px, "o", label=robot, color=robot.color, zorder=4
+                )
                 dots.append(dot)
 
                 # Add sensor range visualization
@@ -410,6 +444,7 @@ class Scene:
                     edgecolor="yellow",
                     facecolor="yellow",
                     alpha=0.5,
+                    zorder=1.5,
                 )
                 self.ax.add_patch(sensor_circle)
                 circles.append(sensor_circle)
@@ -420,7 +455,7 @@ class Scene:
             self.ax.set_yticks([])
 
             self.fig.canvas.draw_idle()
-            plt.pause(delay)
+            plt.pause(delay_interval)
 
             # Each robot moves one step and re‑explores
             for robot in self.robots:
