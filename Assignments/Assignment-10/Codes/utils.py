@@ -3,15 +3,33 @@ utils.py \n
 Utility functions
 """
 
+import logging
 import random
 from collections import deque
 from enum import Enum
 from typing import Dict, Generator, List, Tuple
 
+import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.colors import ListedColormap
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+
 
 Point = Tuple[int, int]
 """A point (x, y) in the grid"""
+
+
+def set_seed(seed: int) -> None:
+    """
+    Set the random seed for reproducibility.
+
+    :param seed: Random seed
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    logger.debug(f"Random seed: {seed}")
 
 
 class CellState(Enum):
@@ -35,24 +53,24 @@ class CellState(Enum):
 class GridMap:
     """Grid map with obstacles and explored areas."""
 
-    def __init__(self, size: int, num_obstacles: int, obs_size: int):
+    def __init__(self, grid_size: int, num_obstacles: int, obstacle_size: int) -> None:
         """
         Initialize grid map with given size and number of obstacles.
 
-        :param size: Size of the grid (N x N)
+        :param grid_size: Size of the grid (N x N)
         :param num_obstacles: Number of block‐shaped obstacles
         :param obs_size: Size of each obstacle (obs_size x obs_size)
         """
-        self.N = size
-        self.free = [[True] * size for _ in range(size)]
-        self.explored = [[False] * size for _ in range(size)]
+        self.N = grid_size
+        self.free = [[True] * grid_size for _ in range(grid_size)]
+        self.explored = [[False] * grid_size for _ in range(grid_size)]
 
         # Randomly place block‐shaped obstacles
         for _ in range(num_obstacles):
-            x = random.randrange(size - obs_size)
-            y = random.randrange(size - obs_size)
-            for i in range(obs_size):
-                for j in range(obs_size):
+            x = random.randrange(grid_size - obstacle_size)
+            y = random.randrange(grid_size - obstacle_size)
+            for i in range(obstacle_size):
+                for j in range(obstacle_size):
                     self.free[x + i][y + j] = False
 
     def in_bounds(self, p: Point) -> bool:
@@ -88,7 +106,7 @@ class GridMap:
             if self.in_bounds(q) and self.is_free(q):
                 yield q
 
-    def mark_explored(self, robot_pos: Point, sensor_range: int):
+    def mark_explored(self, robot_pos: Point, sensor_range: int) -> None:
         """
         Robot sees in a square of side (2 * sensor_range + 1).
         Mark all cells in the square as explored.
@@ -174,7 +192,7 @@ class GridMap:
 class Robot:
     """Robot with a sensor range and a path to follow."""
 
-    def __init__(self, id: int, start: Point, sensor_range: int):
+    def __init__(self, id: int, start: Point, sensor_range: int) -> None:
         """
         Initialize robot with ID, start position, and sensor range.
 
@@ -197,7 +215,7 @@ class Robot:
         """
         return abs(self.pos[0] - pt[0]) + abs(self.pos[1] - pt[1])
 
-    def step(self):
+    def step(self) -> None:
         """Advance the robot by one step along its path."""
         if len(self.path) > 1:
             # Advance by one cell
@@ -220,7 +238,7 @@ class Robot:
 class Coordinator:
     """Coordinator for multiple robots to explore the grid."""
 
-    def __init__(self, grid: GridMap, robots: List[Robot]):
+    def __init__(self, grid: GridMap, robots: List[Robot]) -> None:
         """
         Initialize the coordinator with a grid and a list of robots.
         The coordinator manages the assignment of frontiers to robots.
@@ -246,7 +264,7 @@ class Coordinator:
         R = self.robots[0].sensor_range
         return max(0.0, 1.0 - d / float(R))
 
-    def assign(self):
+    def assign(self) -> None:
         """
         Assign frontiers to robots based on their costs and utilities.
         Each robot selects the best frontier to explore next.
@@ -277,3 +295,109 @@ class Coordinator:
                 d = abs(best[0] - t[0]) + abs(best[1] - t[1])
                 self.U[t] -= self.P(d)
                 self.U[t] = max(self.U[t], 0.0)
+
+
+class Scene:
+    """Scene class to manage the setup and simulation of the exploration process."""
+
+    def __init__(self, grid_map: GridMap, robots: List[Robot]) -> None:
+        """
+        Initialize the Scene with a grid map, robots, and a coordinator.
+
+        :param grid_map: Instance of GridMap
+        :param robots: List of Robot instances
+        """
+        self.grid_map = grid_map
+        self.robots = robots
+        self.coordinator = Coordinator(grid_map, robots)
+
+    def setup(self) -> None:
+        """Setup the initial state of the scene."""
+        # Mark the initial explored area for each robot
+        for robot in self.robots:
+            self.grid_map.mark_explored(robot.pos, robot.sensor_range)
+
+        # Prepare figure once
+        plt.ion()
+        self.fig, self.ax = plt.subplots(figsize=(6, 6))
+        plt.tight_layout()
+        N = self.grid_map.N
+        cmap = CellState.get_cmap()
+        self.im = self.ax.imshow(np.zeros((N, N)), origin="upper", cmap=cmap)
+        self.robot_colors = plt.cm.tab10(np.linspace(0, 1, len(self.robots)))
+        self.texts: List[plt.Text] = []  # Utility texts
+        self.lines: List[plt.Line2D] = []  # Path lines
+        self.dots: List[plt.Line2D] = []  # Robot markers
+
+    def render(
+        self, num_iterations: int, delay: float = 0.1, close_after: bool = False
+    ) -> None:
+        """
+        Run the simulation for a specified number of iterations.
+
+        :param num_iterations: Number of iterations to run
+        :param delay: Delay between iterations (in seconds)
+        :param close_after: If True, close the plot immediately after the simulation ends
+        """
+        for t in range(1, num_iterations + 1):
+            self.coordinator.assign()
+
+            # Update grid image
+            state, fronts = self.grid_map.grid_state()
+            self.im.set_data(np.array(state))
+
+            # Clear old annotations
+            for obj in self.texts + self.lines + self.dots:
+                obj.remove()
+            self.texts.clear()
+            self.lines.clear()
+            self.dots.clear()
+
+            # Draw utilities on frontiers
+            for x, y in fronts:
+                u = self.coordinator.U.get((x, y), 0.0)
+                txt = self.ax.text(
+                    y,
+                    x,
+                    f"{u:.2f}",
+                    ha="center",
+                    va="center",
+                    fontsize=6,
+                    color="black",
+                )
+                self.texts.append(txt)
+
+            for robot, color in zip(self.robots, self.robot_colors):
+                # Plot the entire path history
+                xs, ys = zip(*[robot.pos] + robot.path)
+                self.ax.plot(ys, xs, "-", linewidth=1, color=color, alpha=0.3)
+
+                # Plot the current position
+                px, py = robot.pos
+                (dot,) = self.ax.plot(py, px, "o", label=f"R{robot.id}", color=color)
+                self.dots.append(dot)
+
+            self.ax.set_title(f"Iteration {t}")
+            self.ax.legend(loc="upper right", fontsize=8)
+            self.ax.set_xticks([])
+            self.ax.set_yticks([])
+
+            self.fig.canvas.draw_idle()
+            plt.pause(delay)
+
+            # Each robot moves one step and re‑explores
+            for robot in self.robots:
+                robot.step()
+                self.grid_map.mark_explored(robot.pos, robot.sensor_range)
+
+            logger.info(
+                f"Step {t}:\n"
+                f"  positions:  "
+                + ", ".join(f"Robot {r.id}: {r.pos}" for r in self.robots)
+            )
+
+        plt.ioff()
+        if not close_after:
+            plt.show()
+        plt.close(self.fig)
+        logger.debug("Simulation complete.")
