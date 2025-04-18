@@ -343,8 +343,13 @@ class Scene:
         self.robots = robots
         self.coordinator = Coordinator(grid_map, robots)
 
-    def setup(self) -> None:
-        """Setup the initial state of the scene."""
+    def setup(self) -> "Scene":
+        """
+        Setup the initial state of the scene.
+        This includes marking the initial explored area for each robot and preparing the plot.
+
+        :return: The Scene instance
+        """
         # Mark the initial explored area for each robot
         for robot in self.robots:
             self.grid_map.mark_explored(robot.pos, robot.sensor_range)
@@ -359,19 +364,21 @@ class Scene:
         self.grid_image = self.ax.imshow(
             state, origin="upper", alpha=alpha, cmap=CellState.get_cmap(), zorder=1
         )
+        return self
 
     def render(
         self,
         num_iterations: int = 100,
         delay_interval: float = 0.1,
         close_after: bool = False,
-    ) -> None:
+    ) -> "Scene":
         """
         Run the simulation for a specified number of iterations.
 
         :param num_iterations: Number of iterations to run; default 100
         :param delay_interval: Delay between iterations (in seconds) to ensure plot updates; default 0.1
         :param close_after: If True, close the plot immediately after the simulation ends; default False
+        :return: The Scene instance
         """
         texts: List[plt.Text] = []  # Utility texts
         lines: List[plt.Line2D] = []  # Path lines
@@ -472,3 +479,4 @@ class Scene:
             plt.show()
         plt.close(self.fig)
         logger.debug("Simulation complete.")
+        return self
