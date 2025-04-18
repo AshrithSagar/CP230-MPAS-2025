@@ -10,7 +10,7 @@ from typing import List
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import ListedColormap
-from utils import Coordinator, GridMap, Robot
+from utils import CellState, Coordinator, GridMap, Robot
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -25,7 +25,7 @@ def main():
     logger.debug(f"Random seed: {seed}")
 
     # 40×40, 6 obstacles of ~10×10 => 100 cells each
-    grid_map = GridMap(size=40, num_obstacles=6, obs_size=10)
+    grid_map = GridMap(size=40, num_obstacles=6, obs_size=3)
     robots = Robot.from_count(count=2, start=(0, 0), sensor_range=6)
     coord = Coordinator(grid_map, robots)
     num_iterations = 10
@@ -37,8 +37,7 @@ def main():
     # Prepare figure once
     plt.ion()
     fig, ax = plt.subplots(figsize=(6, 6))
-    # 0=unknown, 1=explored, 2=frontier, 3=obstacle
-    cmap = ListedColormap(["lightgray", "white", "yellow", "dimgray"])
+    cmap = CellState.get_cmap()
     im = ax.imshow(np.zeros((grid_map.N, grid_map.N)), origin="upper", cmap=cmap)
     robot_colors = plt.cm.tab10(np.linspace(0, 1, len(robots)))
     texts: List[plt.Text] = []  # Will hold utility texts

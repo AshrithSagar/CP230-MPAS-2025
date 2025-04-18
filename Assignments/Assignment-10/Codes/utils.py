@@ -5,21 +5,35 @@ Utility functions
 
 import random
 from collections import deque
-from enum import IntEnum
+from enum import Enum
 from typing import Dict, Generator, List, Tuple
+
+from matplotlib.colors import ListedColormap
 
 Point = Tuple[int, int]
 """A point (x, y) in the grid"""
 
 
+class CellState(Enum):
+    """Cell state for the grid cells."""
+
+    UNKNOWN = ("lightgray", 0)
+    EXPLORED = ("white", 1)
+    FRONTIER = ("yellow", 2)
+    OBSTACLE = ("dimgray", 3)
+
+    @staticmethod
+    def get_cmap() -> ListedColormap:
+        """
+        Generate a colormap for matplotlib based on CellState colors.
+
+        :return: ListedColormap object
+        """
+        return ListedColormap([state.value[0] for state in CellState])
+
+
 class GridMap:
     """Grid map with obstacles and explored areas."""
-
-    class CellState(IntEnum):
-        UNKNOWN = 0
-        EXPLORED = 1
-        FRONTIER = 2
-        OBSTACLE = 3
 
     def __init__(self, size: int, num_obstacles: int, obs_size: int):
         """
@@ -70,13 +84,13 @@ class GridMap:
         """
         x, y = p
         for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
-            q = (x + dx, y + dy)
+            q: Point = (x + dx, y + dy)
             if self.in_bounds(q) and self.is_free(q):
                 yield q
 
     def mark_explored(self, robot_pos: Point, sensor_range: int):
         """
-        Robot sees in a square of side (2r+1).
+        Robot sees in a square of side (2 * sensor_range + 1).
         Mark all cells in the square as explored.
 
         :param robot_pos: Robot position (x, y)
@@ -108,25 +122,23 @@ class GridMap:
     def grid_state(self) -> Tuple[List[List[int]], List[Point]]:
         """
         Returns the state of the grid and the list of frontier points.
-        The state is represented as a matrix:
-        - 0: unknown
-        - 1: explored free
-        - 2: frontier
-        - 3: obstacle
+        The state is represented as a matrix, as specified by the CellState enum.
 
         :return: Tuple of grid state and list of frontier points
         """
         N = self.N
         front = set(self.frontiers())
-        state = [[self.CellState.UNKNOWN.value] * N for _ in range(N)]
+        state = [[CellState.UNKNOWN.value[1]] * N for _ in range(N)]
         for i in range(N):
             for j in range(N):
                 if not self.free[i][j]:
-                    state[i][j] = self.CellState.OBSTACLE.value
+                    state[i][j] = CellState.OBSTACLE.value[1]
                 elif (i, j) in front:
-                    state[i][j] = self.CellState.FRONTIER.value
+                    state[i][j] = CellState.FRONTIER.value[1]
                 elif self.explored[i][j]:
-                    state[i][j] = self.CellState.EXPLORED.value
+                    state[i][j] = CellState.EXPLORED.value[1]
+                else:
+                    state[i][j] = CellState.UNKNOWN.value[1]
         return state, list(front)
 
     def bfs(self, start: Point, goal: Point) -> List[Point]:
