@@ -7,7 +7,7 @@ from utils import GridMap, Robot, Scene, set_seed
 
 
 def main():
-    set_seed(42)
+    set_seed(24233)
 
     # 40×40, 6 obstacles of ~10×10 => 100 cells each
     grid_map = GridMap(grid_size=40, num_obstacles=6, obstacle_size=3)

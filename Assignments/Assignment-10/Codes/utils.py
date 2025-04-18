@@ -12,6 +12,7 @@ from typing import Dict, Generator, List, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import ListedColormap
+from matplotlib.patches import Circle
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -33,12 +34,15 @@ def set_seed(seed: int = 42) -> None:
 
 
 class CellState(Enum):
-    """Cell state for the grid cells."""
+    """
+    Cell state for the grid cells.
+    Tuple of (index, color, alpha).
+    """
 
-    UNKNOWN = ("lightgray", 0)
-    EXPLORED = ("white", 1)
-    FRONTIER = ("yellow", 2)
-    OBSTACLE = ("dimgray", 3)
+    UNKNOWN = (0, "lightgray", 1.0)
+    EXPLORED = (1, "blue", 0.1)
+    FRONTIER = (2, "magenta", 0.4)
+    OBSTACLE = (3, "dimgray", 1.0)
 
     @staticmethod
     def get_cmap() -> ListedColormap:
@@ -47,7 +51,7 @@ class CellState(Enum):
 
         :return: ListedColormap object
         """
-        return ListedColormap([state.value[0] for state in CellState])
+        return ListedColormap([state.value[1] for state in CellState])
 
 
 class GridMap:
@@ -137,27 +141,33 @@ class GridMap:
                             break
         return frontiers
 
-    def get_grid_state(self) -> List[List[int]]:
+    def get_grid_state(self) -> Tuple[List[List[int]], List[List[float]]]:
         """
-        Returns the state of the grid.
+        Returns the state of the grid and the alpha values for visualization.
         The state is represented as a matrix, as specified by the CellState enum.
+        The alpha values are a 2D array of floats, with the same shape as the state.
 
-        :return: 2D list representing the grid state
+        :return: Tuple of 2D list representing the grid state, and 2D list of alpha values
         """
         N = self.grid_size
         frontiers = set(self.get_frontiers())
-        state = [[CellState.UNKNOWN.value[1]] * N for _ in range(N)]
+        state = [[CellState.UNKNOWN.value[0]] * N for _ in range(N)]
+        alpha = [[CellState.UNKNOWN.value[2]] * N for _ in range(N)]
         for i in range(N):
             for j in range(N):
                 if not self.free[i][j]:
-                    state[i][j] = CellState.OBSTACLE.value[1]
+                    state[i][j] = CellState.OBSTACLE.value[0]
+                    alpha[i][j] = CellState.OBSTACLE.value[2]
                 elif (i, j) in frontiers:
-                    state[i][j] = CellState.FRONTIER.value[1]
+                    state[i][j] = CellState.FRONTIER.value[0]
+                    alpha[i][j] = CellState.FRONTIER.value[2]
                 elif self.explored[i][j]:
-                    state[i][j] = CellState.EXPLORED.value[1]
+                    state[i][j] = CellState.EXPLORED.value[0]
+                    alpha[i][j] = CellState.EXPLORED.value[2]
                 else:
-                    state[i][j] = CellState.UNKNOWN.value[1]
-        return state
+                    state[i][j] = CellState.UNKNOWN.value[0]
+                    alpha[i][j] = CellState.UNKNOWN.value[2]
+        return state, alpha
 
     def get_shortest_path(self, start: Point, goal: Point) -> List[Point]:
         """
@@ -204,6 +214,7 @@ class Robot:
         self.pos = start
         self.sensor_range = sensor_range
         self.path: List[Point] = []
+        self.history: List[Point] = [start]
 
     def __str__(self) -> str:
         return f"Robot {self.id}"
@@ -224,6 +235,7 @@ class Robot:
             # Advance by one cell
             self.pos = self.path[1]
             self.path.pop(0)
+            self.history.append(self.pos)
 
     @classmethod
     def from_count(cls, count: int, start: Point, sensor_range: int) -> List["Robot"]:
@@ -324,9 +336,12 @@ class Scene:
         plt.ion()
         self.fig, self.ax = plt.subplots(figsize=(7, 7))
         plt.tight_layout()
-        grid_image = np.zeros((self.grid_map.grid_size, self.grid_map.grid_size))
+        grid_size = self.grid_map.grid_size
+        plt.xlim(-1, grid_size)
+        plt.ylim(grid_size, -1)
         cmap = CellState.get_cmap()
-        self.grid_image = self.ax.imshow(grid_image, origin="upper", cmap=cmap)
+        state, alpha = self.grid_map.get_grid_state()
+        self.grid_image = self.ax.imshow(state, origin="upper", cmap=cmap, alpha=alpha)
         self.robot_colors = plt.cm.tab10(np.linspace(0, 1, len(self.robots)))
 
     def render(
@@ -342,20 +357,23 @@ class Scene:
         texts: List[plt.Text] = []  # Utility texts
         lines: List[plt.Line2D] = []  # Path lines
         dots: List[plt.Line2D] = []  # Robot markers
+        circles: List[Circle] = []  # Sensor range circles
 
         for t in range(1, num_iterations + 1):
             self.coordinator.assign()
 
             # Update grid image
-            state = self.grid_map.get_grid_state()
-            self.grid_image.set_data(np.array(state))
+            state, alpha = self.grid_map.get_grid_state()
+            self.grid_image.set_data(state)
+            self.grid_image.set_alpha(alpha)
+            self.grid_image.autoscale()
 
             # Clear old annotations
-            for obj in texts + lines + dots:
-                obj.remove()
-            texts.clear()
-            lines.clear()
-            dots.clear()
+            objs: List[List[plt.Artist]] = [texts, lines, dots, circles]
+            for obj in objs:
+                for el in obj:
+                    el.remove()
+                obj.clear()
 
             # Draw utilities on frontiers
             frontiers = self.grid_map.get_frontiers()
@@ -363,8 +381,7 @@ class Scene:
                 x, y = frontier
                 u = self.coordinator.U.get(frontier, 0.0)
                 txt = self.ax.text(
-                    y,
-                    x,
+                    *(y, x),
                     f"{u:.2f}",
                     ha="center",
                     va="center",
@@ -374,14 +391,28 @@ class Scene:
                 texts.append(txt)
 
             for robot, color in zip(self.robots, self.robot_colors):
-                # Plot the entire path history
-                xs, ys = zip(*[robot.pos] + robot.path)
-                self.ax.plot(ys, xs, "-", linewidth=1, color=color, alpha=0.3)
+                # Plot the path history
+                xs, ys = zip(*robot.history)
+                (line,) = self.ax.plot(
+                    *(ys, xs), "-", linewidth=1, color=color, alpha=0.5
+                )
+                lines.append(line)
 
                 # Plot the current position
                 px, py = robot.pos
                 (dot,) = self.ax.plot(py, px, "o", label=robot, color=color)
                 dots.append(dot)
+
+                # Add sensor range visualization
+                sensor_circle = Circle(
+                    (py, px),
+                    radius=robot.sensor_range,
+                    edgecolor="yellow",
+                    facecolor="yellow",
+                    alpha=0.5,
+                )
+                self.ax.add_patch(sensor_circle)
+                circles.append(sensor_circle)
 
             self.ax.set_title(f"Iteration {t}")
             self.ax.legend(loc="best", fontsize=8)
