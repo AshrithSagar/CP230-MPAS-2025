@@ -11,6 +11,7 @@ from typing import Dict, Generator, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.animation import FFMpegWriter
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Circle
 
@@ -371,6 +372,9 @@ class Scene:
         num_iterations: int = 100,
         delay_interval: float = 0.1,
         close_after: bool = False,
+        record: bool = False,
+        fps: int = 24,
+        save_file: str = "simulation.mp4",
     ) -> "Scene":
         """
         Run the simulation for a specified number of iterations.
@@ -378,6 +382,9 @@ class Scene:
         :param num_iterations: Number of iterations to run; default 100
         :param delay_interval: Delay between iterations (in seconds) to ensure plot updates; default 0.1
         :param close_after: If True, close the plot immediately after the simulation ends; default False
+        :param record: If True, record the simulation as a video; default False
+        :param fps: Frames per second for the video; default 24
+        :param save_file: Filename to save the video; default "simulation.mp4"
         :return: The Scene instance
         """
         texts: List[plt.Text] = []  # Utility texts
@@ -385,6 +392,11 @@ class Scene:
         dots: List[plt.Line2D] = []  # Robot markers
         circles: List[Circle] = []  # Sensor range circles
         obstacles: List[plt.Rectangle] = []  # Obstacles
+
+        writer = None
+        if record:
+            writer = FFMpegWriter(fps=int(fps), metadata={"title": "Simulation"})
+            writer.setup(self.fig, save_file, dpi=100)
 
         for t in range(1, num_iterations + 1):
             self.coordinator.assign()
@@ -462,7 +474,10 @@ class Scene:
             self.ax.set_yticks([])
 
             self.fig.canvas.draw_idle()
-            plt.pause(delay_interval)
+            if record:
+                writer.grab_frame()
+            else:
+                plt.pause(delay_interval)
 
             # Each robot moves one step and re‑explores
             for robot in self.robots:
@@ -474,6 +489,8 @@ class Scene:
                 + ", ".join(f"{r}: {r.pos}" for r in self.robots)
             )
 
+        if record:
+            writer.finish()
         plt.ioff()
         if not close_after:
             plt.show()
