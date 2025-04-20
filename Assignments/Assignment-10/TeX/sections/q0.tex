@@ -19,3 +19,30 @@ In each iteration,
 \end{enumerate}
 
 \subsection*{Solution}
+
+The attached code and simulation videos demonstrate the frontier cells, explored cells, unexplored cells, and the path traced by the robots.
+
+A frontier cell is an explored free cell with at least one unknown neighbor.
+Each frontier cell is initialised with a utility value of 1.0 in the beginning, i.e.
+\begin{equation*}
+    \mathcal{U}(f) = 1.0 \quad \text{for all frontier cells } f
+\end{equation*}
+
+The utility represents how desirable that cell is for exploration.
+When a robot is assigned to a frontier cell, the utilities of other frontier cells are decreased based on their Manhattan distance \( d \) from the selected cell, as
+\begin{equation*}
+    \mathcal{U}(t) \gets \max\left(0, \mathcal{U}(t) - P(d)\right)
+\end{equation*}
+where \( P(d) \) is a a distance-based dropoff function, defined as
+\begin{equation*}
+    P(d) = \max\left(0, 1 - \frac{d}{R}\right)
+\end{equation*}
+where \( R \) is the sensor range of each robot.
+Note that this function linearly decreases from 1.0 (when \( d = 0 \)) to 0.0 (when \( d \geq R \)).
+
+Frontier cells close to the selected target lose more utility, which discourages other robots from duplicating effort.
+On the other hand, distant frontiers retain utility, encouraging robots to spread out and cover new areas.
+This helps in distributing robots across the grid, reducing overlap and improving efficiency.
+The robots are greedily assigned to the frontier cell with the highest utility.
+
+This approach ensures that the robots explore the environment efficiently, while also avoiding collisions and redundant exploration.
