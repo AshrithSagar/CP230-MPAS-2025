@@ -8,6 +8,9 @@ mermaid-filter.err
 Algorithms/notebooks/
 Assignments/**/notebooks/
 
+# Video
+Assignments/Assignment-10/Codes/simulations/
+
 
 ### Python
 
