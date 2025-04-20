@@ -236,11 +236,17 @@ class GridMap:
             shape = random.choice(list(ObstacleShape))
             obstacle = ObstacleGenerator(shape=shape, occupancy=obstacle_occupancy)
             cells, bb = obstacle.get_cells(), obstacle.get_bounding_box()
-            # Random position (w.r.t. Top-left corner), ensuring within grid
-            x = random.randint(0, grid_size - bb[0])
-            y = random.randint(0, grid_size - bb[1])
-            for i, j in cells:
-                self.free[x + i][y + j] = False
+            placed = False
+            while not placed:
+                # Random position (for obstacle's top-left corner), ensuring within grid
+                x = random.randint(0, grid_size - bb[0])
+                y = random.randint(0, grid_size - bb[1])
+
+                # Check if the new obstacle overlaps with any existing obstacles
+                if all(self.free[x + i][y + j] for i, j in cells):
+                    for i, j in cells:
+                        self.free[x + i][y + j] = False
+                    placed = True
 
     def in_bounds(self, p: Point) -> bool:
         """
