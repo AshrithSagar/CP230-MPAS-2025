@@ -20,6 +20,8 @@ from matplotlib.patches import Circle
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
+global _SEED
+_SEED = None
 
 Point = Tuple[int, int]
 """A point (x, y) in the grid"""
@@ -31,6 +33,8 @@ def set_seed(seed: int = 42) -> None:
 
     :param seed: Random seed
     """
+    global _SEED
+    _SEED = seed
     random.seed(seed)
     np.random.seed(seed)
     logger.debug(f"Random seed: {seed}")
@@ -292,6 +296,7 @@ class GridMap:
         placed_count = 0
         failed_shapes = []
 
+        # while (placed_count + len(failed_shapes)) < num_obstacles:
         while placed_count < num_obstacles:
             shape = random.choice(list(ObstacleShape))  # Random shape
             obstacle = ObstacleGenerator(shape=shape, occupancy=occupancy)
@@ -690,7 +695,7 @@ class Scene:
                 self.ax.add_patch(sensor_circle)
                 circles.append(sensor_circle)
 
-            self.ax.set_title(f"Iteration {t}")
+            self.ax.set_title(f"Iteration {t}/{num_iterations} (Seed: {_SEED})")
             self.ax.legend(loc="best", fontsize=8)
             self.ax.set_xticks([])
             self.ax.set_yticks([])
