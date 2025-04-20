@@ -65,14 +65,17 @@ class ObstacleShape(Enum):
 
     BLOCK = 0
     """
-    Square block, with area s^2.
+    Rectangular block, with area (s1 * s2).
 
-    :params s: Side length
+    :params s1: Block width
+    :params s2: Block height
     """
 
     LSHAPE = 1
     """
-    L-shaped, with area s1 * s2 + s3 * s4.
+    L-shaped, with area (s1 * s2 + s3 * s4).
+    Divided into three regions, with areas
+    (s1 * (s2 - s3)), (s1 * s3), (s3 * s4).
 
     :params s1: Vertical bar width
     :params s2: Vertical bar length
@@ -82,15 +85,17 @@ class ObstacleShape(Enum):
 
     TSHAPE = 2
     """
-    T-shaped, with area s1 * s2 + s3 * s4. \n
+    T-shaped, with area (s1 * s2 + s3 * s4). \n
     By default, the vertical bar is centered on the horizontal bar,
-    i.e., 2 * s5 + s3 = s2 => s5 = (s2 - s3) / 2.
+    i.e., (2 * s5 + s3) = s2 => s5 = (s2 - s3) / 2.
+    Divided into four regions, with areas
+    (s1 * s5), (s1 * s3), (s1 * (s2 - s3 - s5)), (s3 * s4).
 
     :params s1: Horizontal bar width
     :params s2: Horizontal bar length
     :params s3: Vertical bar width
     :params s4: Vertical bar length
-    :params s5: Junction distance on horizontal bar
+    :params s5: Horizontal junction distance on horizontal bar
     """
 
 
@@ -126,41 +131,48 @@ class ObstacleGenerator:
         :return: Dictionary of parameters for the shape
         """
         if self.shape == ObstacleShape.BLOCK:
-            s: int = kwargs.get("s", int(math.sqrt(self.occupancy)))
-            return {"s": s}
+            # Defaults to a square block
+            _s = round(math.sqrt(self.occupancy))
+            s1: int = kwargs.get("s1", _s)
+            s2: int = kwargs.get("s2", int(self.occupancy // s1))
+            return {"s1": s1, "s2": s2}
 
         elif self.shape == ObstacleShape.LSHAPE:
-            s1: int = kwargs.get("s1", 1)
-            s2: int = kwargs.get("s2", int(self.occupancy // 2))
-            s3: int = kwargs.get("s3", 1)
-            s4: int = kwargs.get("s4", int(self.occupancy // 2))
+            # Defaults to 3 square blocks
+            _s = round(math.sqrt(self.occupancy / 3))
+            s1: int = kwargs.get("s1", _s)
+            s2: int = kwargs.get("s2", 2 * _s)
+            s3: int = kwargs.get("s3", _s)
+            s4: int = kwargs.get("s4", _s)
             return {"s1": s1, "s2": s2, "s3": s3, "s4": s4}
 
         elif self.shape == ObstacleShape.TSHAPE:
-            s1: int = kwargs.get("s1", 1)
-            s2: int = kwargs.get("s2", int(self.occupancy // 2))
-            s3: int = kwargs.get("s3", 1)
-            s4: int = kwargs.get("s4", int(self.occupancy // 2))
-            s5: int = kwargs.get("s5", s2 // 2)
+            # Defaults to 4 square blocks
+            _s = round(math.sqrt(self.occupancy / 4))
+            s1: int = kwargs.get("s1", _s)
+            s2: int = kwargs.get("s2", 3 * _s)
+            s3: int = kwargs.get("s3", _s)
+            s4: int = kwargs.get("s4", _s)
+            s5: int = kwargs.get("s5", _s)
             return {"s1": s1, "s2": s2, "s3": s3, "s4": s4, "s5": s5}
 
     def _generate_body(self) -> List[List[int]]:
         """Generate the obstacle body based on the shape and parameters."""
 
         if self.shape == ObstacleShape.BLOCK:
-            s: int = itemgetter("s")(self.params)
-            body = [[1] * s for _ in range(s)]
+            s1, s2 = itemgetter("s1", "s2")(self.params)
+            body = [[1] * s1 for _ in range(s2)]
 
         elif self.shape == ObstacleShape.LSHAPE:
             s1, s2, s3, s4 = itemgetter("s1", "s2", "s3", "s4")(self.params)
-            height, width = max(s2, s3), max(s1, s4)
+            height, width = s2, s1 + s4
             body = [[0] * width for _ in range(height)]
             for i in range(s2):  # Vertical bar
                 for j in range(s1):
                     body[i][j] = 1
             for i in range(s3):  # Horizontal bar
                 for j in range(s4):
-                    body[s2 - 1 + i][j] = 1
+                    body[s2 - s3 + i][s1 + j] = 1
 
         elif self.shape == ObstacleShape.TSHAPE:
             s1, s2, s3, s4, s5 = itemgetter("s1", "s2", "s3", "s4", "s5")(self.params)
