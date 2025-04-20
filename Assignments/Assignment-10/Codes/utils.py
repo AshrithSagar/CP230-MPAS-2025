@@ -217,7 +217,11 @@ class GridMap:
     """Grid map with obstacles and explored areas."""
 
     def __init__(
-        self, grid_size: int = 40, num_obstacles: int = 6, obstacle_occupancy: int = 100
+        self,
+        grid_size: int = 40,
+        num_obstacles: int = 6,
+        obstacle_occupancy: int = 100,
+        obstacle_min_separation: int = 1,
     ) -> None:
         """
         Initialize grid map with given size and number of obstacles.
@@ -225,12 +229,14 @@ class GridMap:
         :param grid_size: Size of the grid (N x N); default 40
         :param num_obstacles: Number of block‐shaped obstacles; default 6
         :param obstacle_occupancy: Number of cells occupied by each obstacle; default 100
+        :param obstacle_min_separation: Minimum separation between obstacles; default 1
         """
         self.grid_size = grid_size
         self.free = [[True] * grid_size for _ in range(grid_size)]
         self.explored = [[False] * grid_size for _ in range(grid_size)]
 
         # Randomly place obstacles
+        msep = obstacle_min_separation
         for _ in range(num_obstacles):
             # Random shape
             shape = random.choice(list(ObstacleShape))
@@ -242,11 +248,12 @@ class GridMap:
                 x = random.randint(0, grid_size - bb[0])
                 y = random.randint(0, grid_size - bb[1])
 
-                # Check if the new obstacle overlaps with any existing obstacles
-                if all(self.free[x + i][y + j] for i, j in cells):
+                # Check if the new obstacle overlaps with any existing obstacles,
+                # and if it is well separated from others
+                if all(self.well_separated((x + i, y + j), msep) for i, j in cells):
+                    placed = True
                     for i, j in cells:
                         self.free[x + i][y + j] = False
-                    placed = True
 
     def in_bounds(self, p: Point) -> bool:
         """
@@ -267,6 +274,21 @@ class GridMap:
         """
         x, y = p
         return self.free[x][y]
+
+    def well_separated(self, p: Point, sep: int = 0):
+        """
+        Check if a point is separated from others by a given distance.
+
+        :param p: Point (x, y)
+        :param sep: Separation distance; default 0
+        :return: True if well separated, False otherwise
+        """
+        x, y = p
+        return all(
+            self.in_bounds((x + dx, y + dy)) and self.is_free((x + dx, y + dy))
+            for dx in range(-sep, sep + 1)
+            for dy in range(-sep, sep + 1)
+        )
 
     def get_free_neighbours(self, p: Point) -> Generator[Point, None, None]:
         """
