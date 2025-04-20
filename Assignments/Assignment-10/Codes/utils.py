@@ -272,29 +272,53 @@ class GridMap:
         )
 
     def place_obstacles(
-        self,
-        num_obstacles: int,
-        occupancy: int,
-        min_separation: int = 1,
+        self, num_obstacles: int, occupancy: int, min_separation: int
     ) -> None:
-        """Randomly place obstacles"""
+        """Randomly place obstacles while ensuring space availability and separation."""
+
+        max_attempts_per_obstacle = 10  # Prevent infinite loops
         msep = min_separation
-        for _ in range(num_obstacles):
+
+        # Estimate required space
+        required_cells = num_obstacles * occupancy
+        effective_grid_cells = sum(row.count(True) for row in self.free)
+
+        if required_cells > effective_grid_cells:
+            raise ValueError(
+                f"Insufficient space: Need {required_cells} cells, "
+                f"but only {effective_grid_cells} free."
+            )
+
+        placed_count = 0
+        failed_shapes = []
+
+        while placed_count < num_obstacles:
             shape = random.choice(list(ObstacleShape))  # Random shape
             obstacle = ObstacleGenerator(shape=shape, occupancy=occupancy)
             cells, bb = obstacle.get_cells(), obstacle.get_bounding_box()
-            placed = False
-            while not placed:
-                # Random position (for obstacle's top-left corner), ensuring within grid
+
+            success = False
+            for _ in range(max_attempts_per_obstacle):
                 x = random.randint(0, self.grid_size - bb[0])
                 y = random.randint(0, self.grid_size - bb[1])
 
-                # Check if the new obstacle overlaps with any existing obstacles,
-                # and if it is well separated from others
                 if all(self.well_separated((x + i, y + j), msep) for i, j in cells):
-                    placed = True
                     for i, j in cells:
                         self.free[x + i][y + j] = False
+                    success = True
+                    break
+
+            if success:
+                placed_count += 1
+            else:
+                failed_shapes.append(shape.name)
+
+        if placed_count < num_obstacles:
+            logger.warning(
+                f"Warning: Only placed {placed_count}/{num_obstacles} obstacles."
+            )
+            if failed_shapes:
+                logger.warning(f"Failed shapes: {set(failed_shapes)}")
 
     def get_free_neighbours(self, p: Point) -> Generator[Point, None, None]:
         """
