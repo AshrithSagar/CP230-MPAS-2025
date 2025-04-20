@@ -10,7 +10,7 @@ def main():
     set_seed(24233)
 
     # 40×40, 6 obstacles of ~10×10 => 100 cells each
-    grid_map = GridMap(grid_size=40, num_obstacles=6, obstacle_size=3)
+    grid_map = GridMap(grid_size=40, num_obstacles=6, obstacle_occupancy=100)
     robots = Robot.from_count(count=2, start=(0, 0), sensor_range=6)
 
     scene = Scene(grid_map, robots)

@@ -4,9 +4,11 @@ Utility functions
 """
 
 import logging
+import math
 import random
 from collections import deque
 from enum import Enum
+from operator import itemgetter
 from typing import Dict, Generator, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
@@ -55,30 +57,145 @@ class CellState(Enum):
         return ListedColormap([state.value[1] for state in CellState])
 
 
+class ObstacleShape(Enum):
+    """
+    Supported shapes for the obstacles.
+    Each shape has some associated parameters.
+    """
+
+    BLOCK = 0
+    """
+    Square block, with area s^2.
+
+    :params s: Side length
+    """
+
+    LSHAPE = 1
+    """
+    L-shaped, with area s1 * s2 + s3 * s4.
+
+    :params s1: Vertical bar width
+    :params s2: Vertical bar length
+    :params s3: Horizontal bar width
+    :params s4: Horizontal bar length
+    """
+
+    TSHAPE = 2
+    """
+    T-shaped, with area s1 * s2 + s3 * s4. \n
+    By default, the vertical bar is centered on the horizontal bar,
+    i.e., 2 * s5 + s3 = s2 => s5 = (s2 - s3) / 2.
+
+    :params s1: Horizontal bar width
+    :params s2: Horizontal bar length
+    :params s3: Vertical bar width
+    :params s4: Vertical bar length
+    :params s5: Junction distance on horizontal bar
+    """
+
+
+class ObstacleGenerator:
+    """Generate obstacles with different shapes."""
+
+    def __init__(
+        self,
+        shape: ObstacleShape = ObstacleShape.BLOCK,
+        occupancy: int = 100,
+        **kwargs,
+    ) -> None:
+        """
+        Initialize an obstacle with a given shape and occupancy.
+
+        :param shape: Shape of the obstacle; default BLOCK
+        :param occupancy: Number of cells occupied by the obstacle; default 100
+        :param kwargs: Additional parameters for the shape
+        """
+        assert isinstance(shape, ObstacleShape), "Invalid shape"
+        assert isinstance(occupancy, int) and occupancy > 0, "Invalid occupancy"
+        self.shape = shape
+        self.occupancy = occupancy
+        self.params = self._get_shape_params(**kwargs)
+        self.body = self._generate_body()
+
+    def _get_shape_params(self, **kwargs) -> Dict[str, int]:
+        """
+        Get the parameters for the shape based on occupancy and additional kwargs.
+        The parameters are set to default values if not provided.
+
+        :param kwargs: Additional parameters for the shape
+        :return: Dictionary of parameters for the shape
+        """
+        if self.shape == ObstacleShape.BLOCK:
+            s: int = kwargs.get("s", int(math.sqrt(self.occupancy)))
+            return {"s": s}
+
+        elif self.shape == ObstacleShape.LSHAPE:
+            s1: int = kwargs.get("s1", 1)
+            s2: int = kwargs.get("s2", int(self.occupancy // 2))
+            s3: int = kwargs.get("s3", 1)
+            s4: int = kwargs.get("s4", int(self.occupancy // 2))
+            return {"s1": s1, "s2": s2, "s3": s3, "s4": s4}
+
+        elif self.shape == ObstacleShape.TSHAPE:
+            s1: int = kwargs.get("s1", 1)
+            s2: int = kwargs.get("s2", int(self.occupancy // 2))
+            s3: int = kwargs.get("s3", 1)
+            s4: int = kwargs.get("s4", int(self.occupancy // 2))
+            s5: int = kwargs.get("s5", s2 // 2)
+            return {"s1": s1, "s2": s2, "s3": s3, "s4": s4, "s5": s5}
+
+    def _generate_body(self) -> List[List[int]]:
+        """Generate the obstacle body based on the shape and parameters."""
+
+        if self.shape == ObstacleShape.BLOCK:
+            s: int = itemgetter("s")(self.params)
+            body = [[1] * s for _ in range(s)]
+
+        elif self.shape == ObstacleShape.LSHAPE:
+            s1, s2, s3, s4 = itemgetter("s1", "s2", "s3", "s4")(self.params)
+            height, width = max(s2, s3), max(s1, s4)
+            body = [[0] * width for _ in range(height)]
+            for i in range(s2):  # Vertical bar
+                for j in range(s1):
+                    body[i][j] = 1
+            for i in range(s3):  # Horizontal bar
+                for j in range(s4):
+                    body[s2 - 1 + i][j] = 1
+
+        elif self.shape == ObstacleShape.TSHAPE:
+            s1, s2, s3, s4, s5 = itemgetter("s1", "s2", "s3", "s4", "s5")(self.params)
+            height, width = s1 + s4, s2
+            body = [[0] * width for _ in range(height)]
+            for i in range(s1):  # Horizontal bar
+                for j in range(s2):
+                    body[i][j] = 1
+            for i in range(s4):  # Vertical bar
+                for j in range(s3):
+                    body[s1 + i][s5 + j] = 1
+
+        return body
+
+    def show(self):
+        """Plot the obstacle body."""
+        plt.imshow(np.array(self.body), cmap="Greys")
+
+
 class GridMap:
     """Grid map with obstacles and explored areas."""
 
     def __init__(
-        self, grid_size: int = 40, num_obstacles: int = 6, obstacle_size: int = 3
+        self, grid_size: int = 40, num_obstacles: int = 6, obstacle_occupancy: int = 100
     ) -> None:
         """
         Initialize grid map with given size and number of obstacles.
 
         :param grid_size: Size of the grid (N x N); default 40
         :param num_obstacles: Number of block‐shaped obstacles; default 6
-        :param obs_size: Size of each obstacle (obs_size x obs_size); default 3
+        :param obstacle_occupancy: Number of cells occupied by each obstacle; default 100
         """
         self.grid_size = grid_size
         self.free = [[True] * grid_size for _ in range(grid_size)]
         self.explored = [[False] * grid_size for _ in range(grid_size)]
-
-        # Randomly place block‐shaped obstacles
-        for _ in range(num_obstacles):
-            x = random.randrange(grid_size - obstacle_size)
-            y = random.randrange(grid_size - obstacle_size)
-            for i in range(obstacle_size):
-                for j in range(obstacle_size):
-                    self.free[x + i][y + j] = False
 
     def in_bounds(self, p: Point) -> bool:
         """
