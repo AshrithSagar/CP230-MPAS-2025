@@ -187,8 +187,29 @@ class ObstacleGenerator:
 
         return body
 
+    def get_cells(self) -> List[Point]:
+        """
+        Get the coordinates of the occupied cells in the obstacle body.
+
+        :return: List of tuples representing the occupied cells
+        """
+        cells = []
+        for i, row in enumerate(self.body):
+            for j, cell in enumerate(row):
+                if cell == 1:
+                    cells.append((i, j))
+        return cells
+
+    def get_bounding_box(self) -> Tuple[int, int]:
+        """
+        Get the bounding box of the obstacle body.
+
+        :return: Tuple of (height, width) of the bounding box
+        """
+        return len(self.body), len(self.body[0])
+
     def show(self):
-        """Plot the obstacle body."""
+        """Helper to plot the obstacle body separately."""
         plt.imshow(np.array(self.body), cmap="Greys")
 
 
@@ -208,6 +229,18 @@ class GridMap:
         self.grid_size = grid_size
         self.free = [[True] * grid_size for _ in range(grid_size)]
         self.explored = [[False] * grid_size for _ in range(grid_size)]
+
+        # Randomly place obstacles
+        for _ in range(num_obstacles):
+            # Random shape
+            shape = random.choice(list(ObstacleShape))
+            obstacle = ObstacleGenerator(shape=shape, occupancy=obstacle_occupancy)
+            cells, bb = obstacle.get_cells(), obstacle.get_bounding_box()
+            # Random position (w.r.t. Top-left corner), ensuring within grid
+            x = random.randint(0, grid_size - bb[0])
+            y = random.randint(0, grid_size - bb[1])
+            for i, j in cells:
+                self.free[x + i][y + j] = False
 
     def in_bounds(self, p: Point) -> bool:
         """
