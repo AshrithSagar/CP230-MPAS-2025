@@ -234,26 +234,7 @@ class GridMap:
         self.grid_size = grid_size
         self.free = [[True] * grid_size for _ in range(grid_size)]
         self.explored = [[False] * grid_size for _ in range(grid_size)]
-
-        # Randomly place obstacles
-        msep = obstacle_min_separation
-        for _ in range(num_obstacles):
-            # Random shape
-            shape = random.choice(list(ObstacleShape))
-            obstacle = ObstacleGenerator(shape=shape, occupancy=obstacle_occupancy)
-            cells, bb = obstacle.get_cells(), obstacle.get_bounding_box()
-            placed = False
-            while not placed:
-                # Random position (for obstacle's top-left corner), ensuring within grid
-                x = random.randint(0, grid_size - bb[0])
-                y = random.randint(0, grid_size - bb[1])
-
-                # Check if the new obstacle overlaps with any existing obstacles,
-                # and if it is well separated from others
-                if all(self.well_separated((x + i, y + j), msep) for i, j in cells):
-                    placed = True
-                    for i, j in cells:
-                        self.free[x + i][y + j] = False
+        self.place_obstacles(num_obstacles, obstacle_occupancy, obstacle_min_separation)
 
     def in_bounds(self, p: Point) -> bool:
         """
@@ -289,6 +270,31 @@ class GridMap:
             for dx in range(-sep, sep + 1)
             for dy in range(-sep, sep + 1)
         )
+
+    def place_obstacles(
+        self,
+        num_obstacles: int,
+        occupancy: int,
+        min_separation: int = 1,
+    ) -> None:
+        """Randomly place obstacles"""
+        msep = min_separation
+        for _ in range(num_obstacles):
+            shape = random.choice(list(ObstacleShape))  # Random shape
+            obstacle = ObstacleGenerator(shape=shape, occupancy=occupancy)
+            cells, bb = obstacle.get_cells(), obstacle.get_bounding_box()
+            placed = False
+            while not placed:
+                # Random position (for obstacle's top-left corner), ensuring within grid
+                x = random.randint(0, self.grid_size - bb[0])
+                y = random.randint(0, self.grid_size - bb[1])
+
+                # Check if the new obstacle overlaps with any existing obstacles,
+                # and if it is well separated from others
+                if all(self.well_separated((x + i, y + j), msep) for i, j in cells):
+                    placed = True
+                    for i, j in cells:
+                        self.free[x + i][y + j] = False
 
     def get_free_neighbours(self, p: Point) -> Generator[Point, None, None]:
         """
